@@ -1,4 +1,4 @@
-#	@(#)Makefile            e07@nikhef.nl (Eric Wassenaar) 961013
+#	@(#)Makefile            e07@nikhef.nl (Eric Wassenaar) 970826
 
 # ----------------------------------------------------------------------
 # Adapt the installation directories to your local standards.
@@ -137,13 +137,18 @@ CLEANUP = $(PROG) $(OBJS) $(TARFILE) $(TARFILE).Z
 # Rules for installation.
 # ----------------------------------------------------------------------
 
+OWNER = root
+GROUP = staff
+MODE  = 755
+STRIP = -s
+
 all: $(PROG)
 
 $(PROG): $(OBJS)
 	$(CC) $(LDFLAGS) -o $(PROG) $(OBJS) $(LIBRARIES)
 
 install: $(PROG)
-	$(INSTALL) -m 755 -s $(PROG) $(BINDIR)
+	$(INSTALL) -m $(MODE) -o $(OWNER) -g $(GROUP) $(STRIP) $(PROG) $(BINDIR)
 
 man: $(MANS)
 	$(INSTALL) -m 444 vrfy.1 $(MANDIR)

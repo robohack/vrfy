@@ -1,4 +1,6 @@
-	@(#)RELEASE_NOTES       e07@nikhef.nl (Eric Wassenaar) 961113
+	@(#)RELEASE_NOTES       e07@nikhef.nl (Eric Wassenaar) 970828
+
+	URL	ftp://ftp.nikhef.nl/pub/network/vrfy.tar.Z
 
 yymmdd		Description of changes per release
 TODO		Things that still need to be done
@@ -8,11 +10,21 @@ WISHLIST	Wishes expressed by various people
 # Description of changes per release
 # ----------------------------------------------------------------------
 
+970828
+	Linux portability fixes.
+		On some linux platforms h_name is a (const char *).
+		Use explicit casts in assignments and function returns
+		to avoid compiler warnings.
+	Minor portability fixes.
+		Use explicit casts for ntohs()/htons() in a few places
+		to avoid compiler warnings on some platforms.
+	There are no functional changes in this release.
+
 961113
 	Portability fix.
 		Trying to include <strings.h> was a bit over-ambitious
 		and caused confusion on some platforms.
-		There are no functional changes in this release.
+	There are no functional changes in this release.
 
 961013
 	Bug fix.
