@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)vrfy.c	e07@nikhef.nl (Eric Wassenaar) 950410";
+static char Version[] = "@(#)vrfy.c	e07@nikhef.nl (Eric Wassenaar) 961027";
 #endif
 
 /*
@@ -176,43 +176,55 @@ static char Usage[] =
 Usage: vrfy [options] [-v] address [host]\n\
 File:  vrfy [options] [-v] -f file [host]\n\
 Ping:  vrfy [options] [-v] -p domain\n\
+Etrn:  vrfy [options] [-v] -T domain [name]\n\
 Options: [-a] [-d] [-l] [-c secs] [-t secs]\n\
-Special: [-L level] [-R] [-s] [-n] [-e]\
+Special: [-L level] [-R] [-s] [-n] [-e] [-h] [-H]\
 ";
 
 
 #include "vrfy.h"
 
+char **optargv = NULL;		/* argument list including default options */
+int optargc = 0;		/* number of arguments in new argument list */
+
 char *HostSpec = NULL;		/* explicit host to be queried */
 char *AddrSpec = NULL;		/* address being processed */
 char *FileName = NULL;		/* name of file being processed */
 int LineNumber = 0;		/* line number into file */
-int ExitStat = EX_OK;		/* overall result status */
+int ExitStat = EX_SUCCESS;	/* overall result status */
 bool SuprErrs = FALSE;		/* suppress parsing errors, if set */
 
-int debug = 0;			/* debugging level */
-int verbose = 0;		/* verbosity level */
-int recursive = 0;		/* recursive mode maximum level */
-bool stripit = FALSE;		/* strip comments, if set */
-bool vrfyall = FALSE;		/* query all mx hosts found, if set */
-bool localerr = FALSE;		/* handle errors locally, if set */
-bool pingmode = FALSE;		/* ping mx hosts, if set */
-bool filemode = FALSE;		/* verify file, if set */
-bool helomode = FALSE;		/* issue HELO command, if set */
-bool onexmode = FALSE;		/* issue ONEX command, if set */
-bool mailmode = FALSE;		/* issue MAIL command, if set */
-bool expnmode = FALSE;		/* use EXPN instead of VRFY, if set */
-bool rcptmode = FALSE;		/* use RCPT instead of VRFY, if set */
+int debug = 0;			/* -d  debugging level */
+int verbose = 0;		/* -v  verbosity level */
+int recursive = 0;		/* -L  recursive mode maximum level */
+
+bool stripit = FALSE;		/* -s  strip comments, if set */
+bool vrfyall = FALSE;		/* -a  query all mx hosts found, if set */
+bool localerr = FALSE;		/* -l  handle errors locally, if set */
+bool etrnmode = FALSE;		/* -T  etrn mx hosts, if set */
+bool pingmode = FALSE;		/* -p  ping mx hosts, if set */
+bool filemode = FALSE;		/* -f  verify file, if set */
+bool helomode = FALSE;		/* -h  issue HELO command, if set */
+bool ehlomode = FALSE;		/* -H  issue EHLO/HELO command, if set */
+bool onexmode = FALSE;		/* -o  issue ONEX command, if set */
+bool expnmode = FALSE;		/* -e  use EXPN instead of VRFY, if set */
+bool rcptmode = FALSE;		/* -r  use RCPT instead of VRFY, if set */
 
 char *ReplyList[MAXREPLY];	/* saved address expansions */
 int ReplyCount = 0;		/* number of valid replies */
 
 char *AddrChain[MAXLOOP];	/* address chain in recursive mode */
 
+char *localhost = LOCALHOST;		/* nearest sendmail daemon */
+char *uucprelay = UUCPRELAY;		/* uucp relay host */
+char *bitnetrelay = BITNETRELAY;	/* bitnet relay host */
+char *singlerelay = SINGLERELAY;	/* unqualified host relay */
+
 extern char *MxHosts[MAXMXHOSTS];	/* names of mx hosts found */
 
-extern int ConnTimeout;		/* timeout in secs for connect() */
-extern int ReadTimeout;		/* timeout in secs for sfgets() */
+extern int ConnTimeout;		/* -c  timeout in secs for connect() */
+extern int ReadTimeout;		/* -t  timeout in secs for sfgets() */
+
 extern char *MyHostName;	/* my own fully qualified host name */
 extern char *version;		/* program version number */
 
@@ -231,7 +243,7 @@ char *argv[];
 {
 	register char *option;
 
-	assert(sizeof(u_int) == 4);	/* probably paranoid */
+	assert(sizeof(u_int) >= 4);	/* probably paranoid */
 #ifdef obsolete
 	assert(sizeof(u_short) == 2);	/* perhaps less paranoid */
 	assert(sizeof(ipaddr_t) == 4);	/* but this is critical */
@@ -243,9 +255,50 @@ char *argv[];
 	linebufmode(stdout);
 
 /*
+ * Initialize resolver. Set new defaults.
+ * The old defaults are (RES_RECURSE | RES_DEFNAMES | RES_DNSRCH)
+ */
+	(void) res_init();
+
+	_res.options |=  RES_DEFNAMES;	/* qualify single names */
+	_res.options &= ~RES_DNSRCH;	/* dotted names are qualified */
+
+/*
+ * Overrule compiled-in defaults.
+ */
+	option = getenv("VRFY_LOCALHOST");
+	if (option != NULL)
+		localhost = maxstr(newstr(option), MAXHOST, FALSE);
+
+	option = getenv("VRFY_UUCPRELAY");
+	if (option != NULL)
+		uucprelay = maxstr(newstr(option), MAXHOST, FALSE);
+
+	option = getenv("VRFY_BITNETRELAY");
+	if (option != NULL)
+		bitnetrelay = maxstr(newstr(option), MAXHOST, FALSE);
+
+	option = getenv("VRFY_SINGLERELAY");
+	if (option != NULL)
+		singlerelay = maxstr(newstr(option), MAXHOST, FALSE);
+
+/*
+ * Interpolate default options and parameters.
+ */
+	if (argc < 1 || argv[0] == NULL)
+		fatal(Usage);
+
+	option = getenv("VRFY_DEFAULTS");
+	if (option != NULL)
+	{
+		set_defaults(option, argc, argv);
+		argc = optargc; argv = optargv;
+	}
+
+/*
  * Fetch command line options.
  */
-	while (argc > 1 && argv[1][0] == '-')
+	while (argc > 1 && argv[1] != NULL && argv[1][0] == '-')
 	{
 	    for (option = &argv[1][1]; *option; option++)
 	    {
@@ -271,6 +324,10 @@ char *argv[];
 			stripit = TRUE;
 	    		break;
 
+	    	    case 'H':		/* issue EHLO/HELO command */
+			ehlomode = TRUE;
+	    		/*FALLTHROUGH*/
+
 	    	    case 'h':		/* issue HELO command */
 			helomode = TRUE;
 	    		break;
@@ -279,65 +336,59 @@ char *argv[];
 			onexmode = TRUE;
 	    		break;
 
-	    	    case 'm':		/* issue MAIL command */
-			mailmode = TRUE;
-	    		break;
-
 	    	    case 'e':		/* use EXPN instead of VRFY */
 			expnmode = TRUE;
 	    		break;
 
-	    	    case 'r':		/* use RCPT instead of VRFY */
+	    	    case 'r':		/* use MAIL/RCPT instead of VRFY */
 			rcptmode = TRUE;
 			recursive = 0;
 	    		break;
 
 	    	    case 'n':		/* use alternative protocol suite */
+			ehlomode = TRUE;
 			helomode = TRUE;
 			onexmode = FALSE;
-			mailmode = TRUE;
 			rcptmode = TRUE;
 			recursive = 0;
 	    		break;
 
 	    	    case 'f':		/* verify file */
 	    		filemode = TRUE;
+			if (etrnmode)
+				fatal("-f conflicts with -T");
 			if (pingmode)
 				fatal("-f conflicts with -p");
 	    		break;
 
 	    	    case 'p':		/* ping mx hosts */
 	    		pingmode = TRUE;
+			if (etrnmode)
+				fatal("-p conflicts with -T");
 			if (filemode)
 				fatal("-p conflicts with -f");
 	    		break;
 
+	    	    case 'T':		/* etrn mx hosts */
+	    		etrnmode = TRUE;
+			if (pingmode)
+				fatal("-T conflicts with -p");
+			if (filemode)
+				fatal("-T conflicts with -f");
+	    		break;
+
 		    case 'c':		/* set connect timeout */
-			if (argv[2] == NULL || argv[2][0] == '-')
-				fatal("Missing timeout value");
-			ConnTimeout = atoi(argv[2]);
-			if (ConnTimeout <= 0)
-				fatal("Illegal timeout value %s", argv[2]);
+			ConnTimeout = getval(argv[2], "timeout value", 1, 0);
 			--argc; argv++;
 			break;
 
 		    case 't':		/* set read timeout */
-			if (argv[2] == NULL || argv[2][0] == '-')
-				fatal("Missing timeout value");
-			ReadTimeout = atoi(argv[2]);
-			if (ReadTimeout <= 0)
-				fatal("Illegal timeout value %s", argv[2]);
+			ReadTimeout = getval(argv[2], "timeout value", 1, 0);
 			--argc; argv++;
 			break;
 
 		    case 'L' :		/* set recursion level */
-			if (argv[2] == NULL || argv[2][0] == '-')
-				fatal("Missing recursion level");
-			recursive = atoi(argv[2]);
-			if (recursive <= 0)
-				fatal("Invalid recursion level %s", argv[2]);
-			if (recursive > MAXLOOP)
-				recursive = MAXLOOP;
+			recursive = getval(argv[2], "recursion level", 1, MAXLOOP);
 			rcptmode = FALSE;
 			--argc; argv++;
 			break;
@@ -351,7 +402,7 @@ char *argv[];
 
 		    case 'V' :
 			printf("Version %s\n", version);
-			exit(EX_OK);
+			exit(EX_SUCCESS);
 
 	    	    default:
 	    		fatal(Usage);
@@ -365,12 +416,12 @@ char *argv[];
  * Scan remaining command line arguments.
  */
 	/* must have at least one argument */
-	if (argc < 2)
+	if (argc < 2 || argv[1] == NULL)
 		fatal(Usage);
 
 	/* set optional explicit host to be queried */
-	if (argc > 2)
-		HostSpec = argv[2];
+	if (argc > 2 && argv[2] != NULL)
+		HostSpec = maxstr(argv[2], MAXHOST, TRUE);
 
 	/* rest is undefined */
 	if (argc > 3)
@@ -380,18 +431,16 @@ char *argv[];
  * Miscellaneous initialization.
  */
 	/* get own host name before turning on debugging */
-	if (helomode || pingmode)
+	if (helomode || etrnmode || pingmode)
 		setmyhostname();
+
+	/* set proper parameter for etrn mode */
+	if (etrnmode)
+		option = (HostSpec != NULL) ? HostSpec : MyHostName;
 
 /*
  * Set proper resolver options.
  */
-	(void) res_init();
-
-	/* only do RES_DEFNAMES for single host names without dot */
-	_res.options |=  RES_DEFNAMES;
-	_res.options &= ~RES_DNSRCH;
-
 	/* set nameserver debugging on, if requested */
 	if (debug == 2)
 		_res.options |= RES_DEBUG;
@@ -399,7 +448,10 @@ char *argv[];
 /*
  * All set. Execute the required function.
  */
-	if (pingmode)
+	if (etrnmode)
+		etrn(argv[1], option);	/* etrn the given domain */
+
+	else if (pingmode)
 		ping(argv[1]);		/* ping the given domain */
 
 	else if (filemode)
@@ -413,6 +465,106 @@ char *argv[];
 }
 
 /*
+** SET_DEFAULTS -- Interpolate default options and parameters in argv
+** ------------------------------------------------------------------
+**
+**	The VRFY_DEFAULTS env variable gives customized options.
+**
+**	Returns:
+**		None.
+**
+**	Outputs:
+**		Creates ``optargv'' vector with ``optargc'' arguments.
+*/
+
+void
+set_defaults(option, argc, argv)
+char *option;				/* option string */
+int argc;				/* original command line arg count */
+char *argv[];				/* original command line arguments */
+{
+	register char *p, *q;
+	register int i;
+
+/*
+ * Allocate new argument vector.
+ */
+	optargv = newlist(NULL, 2, char *);
+	optargv[0] = argv[0];
+	optargc = 1;
+
+/*
+ * Construct argument list from option string.
+ */
+	for (q = "", p = newstr(option); *p != '\0'; p = q)
+	{
+		while (is_space(*p))
+			p++;
+
+		if (*p == '\0')
+			break;
+
+		for (q = p; *q != '\0' && !is_space(*q); q++)
+			continue;
+
+		if (*q != '\0')
+			*q++ = '\0';
+
+		optargv = newlist(optargv, optargc+2, char *);
+		optargv[optargc] = p;
+		optargc++;
+	}
+
+/*
+ * Append command line arguments.
+ */
+	for (i = 1; i < argc && argv[i] != NULL; i++)
+	{
+		optargv = newlist(optargv, optargc+2, char *);
+		optargv[optargc] = argv[i];
+		optargc++;
+	}
+
+	/* and terminate */
+	optargv[optargc] = NULL;
+}
+
+/*
+** GETVAL -- Decode parameter value and perform range check
+** --------------------------------------------------------
+**
+**	Returns:
+**		Parameter value if successfully decoded.
+**		Aborts in case of syntax or range errors.
+*/
+
+int
+getval(optstring, optname, minvalue, maxvalue)
+char *optstring;			/* parameter from command line */
+char *optname;				/* descriptive name of option */
+int minvalue;				/* minimum value for option */
+int maxvalue;				/* maximum value for option */
+{
+	register int optvalue;
+
+	if (optstring == NULL || optstring[0] == '-')
+		fatal("Missing %s", optname);
+
+	optvalue = atoi(optstring);
+
+	if (optvalue == 0 && optstring[0] != '0')
+		fatal("Invalid %s %s", optname, optstring);
+
+	if (optvalue < minvalue)
+		fatal("Minimum %s %s", optname, itoa(minvalue));
+
+	if (maxvalue > 0 && optvalue > maxvalue)
+		fatal("Maximum %s %s", optname, itoa(maxvalue));
+
+	return(optvalue);
+}
+
+/*
 ** FATAL -- Abort program when illegal option encountered
 ** ------------------------------------------------------
 **
@@ -422,13 +574,31 @@ char *argv[];
 
 void
 /*VARARGS1*/
-fatal(fmt, a, b, c)
+fatal(fmt, a, b, c, d)
 char *fmt;				/* format of message */
-char *a, *b, *c;			/* optional arguments */
+char *a, *b, *c, *d;			/* optional arguments */
 {
-	(void) fprintf(stderr, fmt, a, b, c);
+	(void) fprintf(stderr, fmt, a, b, c, d);
 	(void) fprintf(stderr, "\n");
 	exit(EX_USAGE);
+}
+
+
+/*
+** ERROR -- Issue error message to error output
+** --------------------------------------------
+**
+**	Returns:
+**		None.
+*/
+
+void /*VARARGS1*/
+error(fmt, a, b, c, d)
+char *fmt;				/* format of message */
+char *a, *b, *c, *d;			/* optional arguments */
+{
+	(void) fprintf(stderr, fmt, a, b, c, d);
+	(void) fprintf(stderr, "\n");
 }
 
 /*
@@ -444,9 +614,9 @@ char *a, *b, *c;			/* optional arguments */
 
 void
 /*VARARGS1*/
-usrerr(fmt, a, b, c)
+usrerr(fmt, a, b, c, d)
 char *fmt;				/* format of message */
-char *a, *b, *c;			/* optional arguments */
+char *a, *b, *c, *d;			/* optional arguments */
 {
 	char msg[BUFSIZ];		/* status message buffer */
 
@@ -456,7 +626,7 @@ char *a, *b, *c;			/* optional arguments */
 
 	/* issue message with fatal error status */
 	(void) sprintf(msg, "554 %s", fmt);
-	message(msg, a, b, c);
+	message(msg, a, b, c, d);
 }
 
 /*
@@ -471,9 +641,9 @@ char *a, *b, *c;			/* optional arguments */
 
 void
 /*VARARGS1*/
-message(msg, a, b, c)
+message(msg, a, b, c, d)
 char *msg;				/* status message */
-char *a, *b, *c;			/* optional arguments */
+char *a, *b, *c, *d;			/* optional arguments */
 {
 	char *fmt = &msg[4];		/* format of actual message */
 
@@ -490,7 +660,7 @@ char *a, *b, *c;			/* optional arguments */
 		printf("%s ... ", printable(AddrSpec));
 
 	/* print message itself */
-	printf(fmt, a, b, c);
+	printf(fmt, a, b, c, d);
 	printf("\n");
 }
 
@@ -505,8 +675,13 @@ char *a, *b, *c;			/* optional arguments */
 **		Valid replies may be saved for later recursion.
 **
 **	Called from smtpreply() for each reply line received in the
-**	vrfy wait phase. Status code 2xx indicate a message with a
+**	vrfy wait phase. Status code 2xx indicates a message with a
 **	valid address expansion. More than one such line may arrive.
+**
+**	Strictly speaking only 250 and 251 are valid for VRFY, EXPN,
+**	and RCPT. Code 252 is added per RFC 1123 to reject VRFY.
+**
+**	Note that we must have an AddrSpec in order to do recursion.
 */
 
 void
@@ -518,8 +693,16 @@ char *msg;				/* status message from reply */
 	/* print the text of the reply */
 	printf("%s\n", address);
 
+	/* skip if this is not a standard reply line */
+	if (!is_digit(msg[0]) || (msg[3] != ' ' && msg[3] != '-'))
+		return;
+
 	/* skip if this is not a valid address expansion */
 	if (msg[0] != '2')
+		return;
+
+	/* only allow 250 and 251 -- explicitly skip 252 */
+	if (msg[1] != '5' || (msg[2] != '0' && msg[2] != '1'))
 		return;
 
 	/* save the reply for later recursion processing */
@@ -541,6 +724,7 @@ char *msg;				/* status message from reply */
 **		Updates the overall result status.
 **
 **	In recursive mode, all received replies are verified in turn.
+**	Note that we must have an AddrSpec in order to do recursion.
 */
 
 #define tempfail(x) (x == EX_TEMPFAIL || x == EX_OSERR || x == EX_IOERR)
@@ -551,12 +735,20 @@ int status;				/* result status of operation */
 char *host;				/* remote host that was queried */
 {
 	/* save result status, keeping previous failures */
-	if (status != EX_OK && !tempfail(ExitStat))
+	if (status != EX_SUCCESS && !tempfail(ExitStat))
 		ExitStat = status;
 
+	/* this must be an internal programming error */
+	if (status == EX_SUCCESS && host == NULL)
+		status = EX_SOFTWARE;
+
 	/* display the appropriate error message */
-	if (status != EX_OK)
+	if (status != EX_SUCCESS)
 		giveresponse(status);
+
+	/* special message in etrn mode */
+	else if (etrnmode)
+		printf("%s responded\n", host);
 
 	/* special message in ping mode */
 	else if (pingmode)
@@ -588,9 +780,9 @@ char *host;				/* remote host that was queried */
 	char *replylist[MAXREPLY];	/* local copy of replies */
 	int replycount = ReplyCount;	/* number of replies received */
 	char *oldhost = host;		/* host queried for old address */
-	char oldaddr[BUFSIZ];		/* parsed original address */
-	char newaddr[BUFSIZ];		/* parsed reply to address */
-	char hostbuf[BUFSIZ];		/* local copy of domain part */
+	char oldaddr[MAXSPEC+1];	/* parsed original address */
+	char newaddr[MAXSPEC+1];	/* parsed reply to address */
+	char hostbuf[MAXHOST+1];	/* local copy of domain part */
 	char *domain;			/* domain part of address */
 	char *SaveFile;
 	int SaveLine;
@@ -623,6 +815,7 @@ char *host;				/* remote host that was queried */
 
 		FileName = oldaddr;
 		LineNumber = 0;
+
 		for (i = 0; i < replycount; i++)
 		{
 			LineNumber++;
@@ -735,6 +928,7 @@ char *filename;				/* name of file to be verified */
  */
 	FileName = filename;
 	LineNumber = 0;
+
 	while (fgets(buf, sizeof(buf), fp) != NULL)
 	{
 		LineNumber++;
@@ -779,6 +973,9 @@ char *filename;				/* name of file to be verified */
 **
 **	Side effects:
 **		Shows the status for each transaction done.
+**
+**	If an explicit HostSpec was given, we don't set AddrSpec since
+**	it may be an entire list. This effectively disables recursion.
 */
 
 void
@@ -793,6 +990,7 @@ char *addrlist;				/* address list to be verified */
 /*
  * Query explicit host if specified.
  * No parsing of the address list will be done in this case.
+ * This requires some extra sanity checks to be done in verify.
  */
 	if (HostSpec != NULL)
 	{
@@ -837,6 +1035,8 @@ char *addrlist;				/* address list to be verified */
 **
 **	Side effects:
 **		Shows the status for each transaction done.
+**
+**	This routine is not used if an explicit HostSpec was given.
 */
 
 void
@@ -844,8 +1044,8 @@ vrfy(address, host)
 char *address;				/* address to be verified */
 char *host;				/* remote host to be queried */
 {
-	char addrbuf[BUFSIZ];		/* plain address without comment */
-	char hostbuf[BUFSIZ];		/* local copy of domain part */
+	char addrbuf[MAXSPEC+1];	/* plain address without comment */
+	char hostbuf[MAXHOST+1];	/* local copy of domain part */
 	char *domain;			/* domain part of address */
 	char *mxhosts[MAXMXHOSTS];	/* local copy of mx hosts */
 	int nmx;			/* number of mx hosts found */
@@ -859,6 +1059,7 @@ char *host;				/* remote host to be queried */
 
 /*
  * Check for invalid control characters in address.
+ * Perform also sanity length check to skip nonsense addresses.
  * Always handle errors locally, to avoid fooling sendmail.
  */
 	AddrSpec = address;
@@ -872,16 +1073,6 @@ char *host;				/* remote host to be queried */
 	}
 
 /*
- * Perform sanity check to skip nonsense addresses.
- */
-	if (strlength(address) > MAXSPEC)
-	{
-		status = EX_USAGE;
-		show(status, (char *)NULL);
-		return;
-	}
-
-/*
  * Query local host if the domain could not be parsed properly,
  * but only if parsing errors are not handled locally (default).
  */
@@ -889,15 +1080,16 @@ char *host;				/* remote host to be queried */
 	SuprErrs = !localerr;
 
 	domain = parsespec(address, addrbuf, hostbuf);
-	if (domain == NULL && !SuprErrs)
+	if (domain == NULL)
 	{
-		status = EX_UNAVAILABLE;
-		show(status, (char *)NULL);
-		return;
-	}
-	else if (domain == NULL)
-	{
-		host = LOCALHOST;
+		if (!SuprErrs)
+		{
+			status = EX_UNAVAILABLE;
+			show(status, (char *)NULL);
+			return;
+		}
+
+		host = localhost;
 		status = verify(address, host);
 		show(status, host);
 		return;
@@ -924,7 +1116,7 @@ char *host;				/* remote host to be queried */
  */
 	if (sameword(domain, "localhost"))
 	{
-		host = LOCALHOST;
+		host = localhost;
 		status = verify(address, host);
 		show(status, host);
 		return;
@@ -944,7 +1136,7 @@ char *host;				/* remote host to be queried */
 
 /*
  * Query all mx hosts found. Use local copy of mx host names.
- * Query primary mx host only, if not verifying all.
+ * Query primary mx host only, if not doing all.
  */
 	for (n = 0; n < nmx; n++)
 		mxhosts[n] = newstr(MxHosts[n]);
@@ -958,6 +1150,64 @@ char *host;				/* remote host to be queried */
 
 	for (n = 0; n < nmx; n++)
 		xfree(mxhosts[n]);
+}
+
+/*
+** ETRN -- Etrn the mx hosts for a given domain
+** --------------------------------------------
+**
+**	Returns:
+**		None.
+**
+**	Side effects:
+**		Shows the status for each transaction done.
+*/
+
+void
+etrn(domain, name)
+char *domain;				/* remote domain to be etrned */
+char *name;				/* domain name for the ETRN command */
+{
+	char *host;			/* remote host to be queried */
+	int nmx;			/* number of mx hosts found */
+	int status;			/* result status */
+	register int n;
+
+/*
+ * Validate domain syntax.
+ */
+	AddrSpec = domain;
+	SuprErrs = FALSE;
+
+	if (invalidhost(domain))
+	{
+		status = EX_UNAVAILABLE;
+		show(status, (char *)NULL);
+		return;
+	}
+
+/*
+ * Etrn address host itself if no mx hosts found.
+ */
+	nmx = getmxhosts(domain);
+	if (nmx < 1)
+	{
+		host = domain;
+		status = etrnhost(name, host);
+		show(status, host);
+		return;
+	}
+
+/*
+ * Etrn all mx hosts found. No need for local copy.
+ * Etrn primary mx host only, if not doing all.
+ */
+	for (n = 0; n < nmx; n++)
+	{
+		host = MxHosts[n];
+		status = etrnhost(name, host);
+		show(status, host);
+	}
 }
 
 /*
@@ -981,6 +1231,19 @@ char *domain;				/* remote domain to be pinged */
 	register int n;
 
 /*
+ * Validate domain syntax.
+ */
+	AddrSpec = domain;
+	SuprErrs = FALSE;
+
+	if (invalidhost(domain))
+	{
+		status = EX_UNAVAILABLE;
+		show(status, (char *)NULL);
+		return;
+	}
+
+/*
  * Ping address host itself if no mx hosts found.
  */
 	nmx = getmxhosts(domain);
@@ -994,7 +1257,7 @@ char *domain;				/* remote domain to be pinged */
 
 /*
  * Ping all mx hosts found. No need for local copy.
- * Ping primary mx host only, if not verifying all.
+ * Ping primary mx host only, if not doing all.
  */
 	for (n = 0; n < nmx; n++)
 	{
@@ -1010,6 +1273,9 @@ char *domain;				/* remote domain to be pinged */
 **
 **	Returns:
 **		Status code of smtp transaction.
+**
+**	The address may be an entire address list in case an explicit
+**	HostSpec was given. Parsing of the list is skipped in that case.
 */
 
 int
@@ -1027,10 +1293,10 @@ char *host;				/* remote host to be queried */
 	while (is_space(*address) || *address == ',')
 		address++;
 	if (*address == '\0')
-		return(EX_OK);
+		return(EX_SUCCESS);
 
 /*
- * Perform sanity check to skip nonsense addresses.
+ * Perform extra sanity check to skip nonsense addresses.
  */
 	if (strlength(address) > MAXSPEC)
 		return(EX_USAGE);
@@ -1069,26 +1335,26 @@ char *host;				/* remote host to be queried */
 		printf("vrfy '%s' at '%s'\n", address, host);
 
 	if (debug >= 3)
-		return(EX_OK);
+		return(EX_SUCCESS);
 
 /*
  * Carry out the smtp protocol suite using VRFY.
- * Note that smtonex returns ok if ONEX is not supported remotely.
- * Note that smtverb returns ok if VERB is not supported remotely.
+ * Note that smtponex returns ok if ONEX is not supported remotely.
+ * Note that smtpverb returns ok if VERB is not supported remotely.
  * Some hosts require a parameter for the VERB command.
  */
 	reply = smtpinit(host);
 
-	if (reply == EX_OK && helomode)
-		reply = smtphelo(MyHostName);
+	if (reply == EX_SUCCESS && helomode)
+		reply = smtphelo(MyHostName, ehlomode);
 
-	if (reply == EX_OK && onexmode)
+	if (reply == EX_SUCCESS && onexmode)
 		reply = smtponex();
 
-	if (reply == EX_OK && verbose >= 3)
+	if (reply == EX_SUCCESS && verbose >= 3)
 		reply = smtpverb("on");
 
-	if (reply == EX_OK)
+	if (reply == EX_SUCCESS)
 		reply = smtpvrfy(address);
 
 	(void) smtpquit();
@@ -1117,26 +1383,26 @@ char *host;				/* remote host to be queried */
 		printf("expn '%s' at '%s'\n", address, host);
 
 	if (debug >= 3)
-		return(EX_OK);
+		return(EX_SUCCESS);
 
 /*
  * Carry out the smtp protocol suite using EXPN.
- * Note that smtonex returns ok if ONEX is not supported remotely.
- * Note that smtverb returns ok if VERB is not supported remotely.
+ * Note that smtponex returns ok if ONEX is not supported remotely.
+ * Note that smtpverb returns ok if VERB is not supported remotely.
  * Some hosts require a parameter for the VERB command.
  */
 	reply = smtpinit(host);
 
-	if (reply == EX_OK && helomode)
-		reply = smtphelo(MyHostName);
+	if (reply == EX_SUCCESS && helomode)
+		reply = smtphelo(MyHostName, ehlomode);
 
-	if (reply == EX_OK && onexmode)
+	if (reply == EX_SUCCESS && onexmode)
 		reply = smtponex();
 
-	if (reply == EX_OK && verbose >= 3)
+	if (reply == EX_SUCCESS && verbose >= 3)
 		reply = smtpverb("on");
 
-	if (reply == EX_OK)
+	if (reply == EX_SUCCESS)
 		reply = smtpexpn(address);
 
 	(void) smtpquit();
@@ -1165,33 +1431,75 @@ char *host;				/* remote host to be queried */
 		printf("rcpt '%s' at '%s'\n", address, host);
 
 	if (debug >= 3)
-		return(EX_OK);
+		return(EX_SUCCESS);
 
 /*
  * Carry out the smtp protocol suite using RCPT.
- * Note that smtonex returns ok if ONEX is not supported remotely.
- * Note that smtverb returns ok if VERB is not supported remotely.
+ * Note that smtponex returns ok if ONEX is not supported remotely.
+ * Note that smtpverb returns ok if VERB is not supported remotely.
  * Some hosts require a parameter for the VERB command.
  * Only malconfigured hosts do not accept an empty sender address.
  */
 	reply = smtpinit(host);
 
-	if (reply == EX_OK && helomode)
-		reply = smtphelo(MyHostName);
+	if (reply == EX_SUCCESS && helomode)
+		reply = smtphelo(MyHostName, ehlomode);
 
-	if (reply == EX_OK && onexmode)
+	if (reply == EX_SUCCESS && onexmode)
 		reply = smtponex();
 
-	if (reply == EX_OK && verbose >= 3)
+	if (reply == EX_SUCCESS && verbose >= 3)
 		reply = smtpverb("on");
 
-	if (reply == EX_OK && mailmode)
+	if (reply == EX_SUCCESS)
 		reply = smtpmail("");
 
-	if (reply == EX_OK)
+	if (reply == EX_SUCCESS)
 		reply = smtprcpt(address);
 
 	(void) smtprset();
+	(void) smtpquit();
+	return(reply);
+}
+
+/*
+** ETRNHOST -- Issue an ETRN command at a given remote smtp host
+** -------------------------------------------------------------
+**
+**	Returns:
+**		Status code of smtp transaction.
+*/
+
+int
+etrnhost(name, host)
+char *name;				/* domain name for the ETRN command */
+char *host;				/* remote host to be queried */
+{
+	register int reply;
+
+/*
+ * Show which name we are going to etrn at which host.
+ */
+	if (verbose || debug)
+		printf("etrn '%s' at '%s'\n", name, host);
+
+	if (debug >= 3)
+		return(EX_SUCCESS);
+
+/*
+ * Carry out the smtp protocol suite.
+ */
+	reply = smtpinit(host);
+
+	if (reply == EX_SUCCESS && helomode)
+		reply = smtphelo(MyHostName, ehlomode);
+
+	if (reply == EX_SUCCESS && verbose >= 3)
+		reply = smtpverb("on");
+
+	if (reply == EX_SUCCESS)
+		reply = smtpetrn(name);
+
 	(void) smtpquit();
 	return(reply);
 }
@@ -1217,15 +1525,15 @@ char *host;				/* remote host to be queried */
 		printf("ping '%s'\n", host);
 
 	if (debug >= 3)
-		return(EX_OK);
+		return(EX_SUCCESS);
 
 /*
  * Carry out the smtp protocol suite.
  */
 	reply = smtpinit(host);
 
-	if (reply == EX_OK && (helomode || verbose >= 3))
-		reply = smtphelo(MyHostName);
+	if (reply == EX_SUCCESS && (helomode || verbose >= 3))
+		reply = smtphelo(MyHostName, ehlomode);
 
 	(void) smtpquit();
 	return(reply);
@@ -1257,14 +1565,14 @@ char *domain;				/* domain to get mx hosts for */
 	{
 		if (sameword(dot, ".uucp"))
 		{
-			MxHosts[0] = UUCPRELAY;
+			MxHosts[0] = uucprelay;
 			nmx = 1;
 			return(nmx);
 		}
 
 		if (sameword(dot, ".bitnet") || sameword(dot, ".earn"))
 		{
-			MxHosts[0] = BITNETRELAY;
+			MxHosts[0] = bitnetrelay;
 			nmx = 1;
 			return(nmx);
 		}
@@ -1288,7 +1596,7 @@ char *domain;				/* domain to get mx hosts for */
 	dot = rindex(domain, '.');
 	if (dot == NULL)
 	{
-		MxHosts[0] = SINGLERELAY;
+		MxHosts[0] = singlerelay;
 		nmx = 1;
 		return(nmx);
 	}

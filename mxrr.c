@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)mxrr.c	e07@nikhef.nl (Eric Wassenaar) 950410";
+static char Version[] = "@(#)mxrr.c	e07@nikhef.nl (Eric Wassenaar) 961013";
 #endif
 
 #include "vrfy.h"
@@ -27,10 +27,10 @@ static char Version[] = "@(#)mxrr.c	e07@nikhef.nl (Eric Wassenaar) 950410";
 extern int verbose;
 extern int debug;
 
-#if PACKETSZ > 1024
-#define	MAXPACKET PACKETSZ
+#if PACKETSZ > 8192
+#define MAXPACKET PACKETSZ	/* PACKETSZ should be the max udp size (512) */
 #else
-#define	MAXPACKET 1024
+#define MAXPACKET 8192		/* but tcp packets can be considerably larger */
 #endif
 
 typedef union {
@@ -47,6 +47,8 @@ typedef union {
 static char hostbuf[MAXMXBUFSIZ];
 
 char *MxHosts[MAXMXHOSTS];	/* list of names of mx hosts found */
+
+char *dbprefix = DBPREFIX;	/* prefix for debug messages to stdout */
 
 /*
 ** GETMXBYNAME -- Fetch mx hosts for a domain
@@ -67,12 +69,14 @@ char *domain;				/* domain to get mx hosts for */
 	HEADER *hp;			/* answer buffer header */
 	int ancount, qdcount;		/* answer count and query count */
 	u_char *msg, *eom, *cp;		/* answer buffer positions */
-	int type, dlen;			/* record type and length */
+	int type, class, dlen;		/* record type, class and length */
 	u_short pref;			/* mx preference value */
 	u_short prefer[MAXMXHOSTS];	/* saved preferences of mx records */
 	char *bp;			/* hostbuf pointer */
 	int nmx;			/* number of mx hosts found */
-	register int i, j, n;
+	register int i;
+	register int j;
+	register int n;
 
 /*
  * Query the nameserver to retrieve mx records for the given domain.
@@ -84,7 +88,7 @@ char *domain;				/* domain to get mx hosts for */
 	if (n < 0)
 	{
 		if (_res.options & RES_DEBUG)
-			printf("res_search failed\n");
+			printf("%sres_search failed\n", dbprefix);
 		return(0);
 	}
 
@@ -95,6 +99,10 @@ char *domain;				/* domain to get mx hosts for */
 		h_errno = NO_RECOVERY;
 		return(0);
 	}
+
+	/* avoid problems after truncation in tcp packets */
+	if (n > sizeof(answer))
+		n = sizeof(answer);
 
 /*
  * Valid answer received. Skip the query record.
@@ -112,7 +120,8 @@ char *domain;				/* domain to get mx hosts for */
 		n = dn_skipname(cp, eom);
 		if (n < 0)
 			return(0);
-		cp += n + QFIXEDSZ;
+		cp += n;
+		cp += QFIXEDSZ;
 	}
 
 /*
@@ -124,9 +133,9 @@ char *domain;				/* domain to get mx hosts for */
 	while (ancount-- > 0 && cp < eom && nmx < MAXMXHOSTS)
 	{
 		if (verbose >= 4 || debug)
-			(void) p_rr((char *)cp, (char *)&answer, stdout);
+			(void) p_rr((qbuf_t *)cp, (qbuf_t *)msg, stdout);
 
-		n = dn_expand(msg, eom, cp, (u_char *)bp, MAXHOST);
+		n = dn_expand(msg, eom, cp, (nbuf_t *)bp, MAXHOST);
 		if (n < 0)
 			break;
 		cp += n;
@@ -134,7 +143,7 @@ char *domain;				/* domain to get mx hosts for */
 		type = _getshort(cp);
  		cp += INT16SZ;
 
-		/* class = _getshort(cp); */
+		class = _getshort(cp);
  		cp += INT16SZ;
 
 		/* ttl = _getlong(cp); */
@@ -143,7 +152,7 @@ char *domain;				/* domain to get mx hosts for */
 		dlen = _getshort(cp);
 		cp += INT16SZ;
 
-		if (type != T_MX) 
+		if (type != T_MX || class != C_IN) 
 		{
 			cp += dlen;
 			continue;
@@ -152,7 +161,7 @@ char *domain;				/* domain to get mx hosts for */
 		pref = _getshort(cp);
 		cp += INT16SZ;
 
-		n = dn_expand(msg, eom, cp, (u_char *)bp, MAXHOST);
+		n = dn_expand(msg, eom, cp, (nbuf_t *)bp, MAXHOST);
 		if (n < 0)
 			break;
 		cp += n;

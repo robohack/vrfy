@@ -1,7 +1,7 @@
 /*
 ** Various configuration definitions.
 **
-**	@(#)conf.h              e07@nikhef.nl (Eric Wassenaar) 950410
+**	@(#)conf.h              e07@nikhef.nl (Eric Wassenaar) 961006
 */
 
 /*
@@ -9,6 +9,7 @@
  * It is contacted in case local addresses without a domain are given.
  * Also when domain parsing errors were encountered, assuming that
  * this host can give a more appropriate error message.
+ * This definition is overruled by the VRFY_LOCALHOST environment variable.
  */
 
 #ifndef LOCALHOST
@@ -18,6 +19,7 @@
 /*
  * This host is contacted when a .uucp address is specified.
  * You probably won't get much useful information.
+ * This definition is overruled by the VRFY_UUCPRELAY environment variable.
  */
 
 #ifndef UUCPRELAY
@@ -27,6 +29,7 @@
 /*
  * This host is contacted when a .bitnet or .earn address is specified.
  * You probably won't get much useful information.
+ * This definition is overruled by the VRFY_BITNETRELAY environment variable.
  */
 
 #ifndef BITNETRELAY
@@ -40,6 +43,7 @@
  * resolved, i.e. they have an MX record.
  * It depends on your local strategy for unqualified hosts what they
  * mean: a .uucp host, a .bitnet host, or just a local host without MX.
+ * This definition is overruled by the VRFY_SINGLERELAY environment variable.
  */
 
 #ifndef SINGLERELAY
@@ -58,3 +62,20 @@
 #define MAXLOOP		50	/* maximum useable recursion level */
 #define MAXMXHOSTS	20	/* maximum number of mx hosts */
 #define MAXADDRS	35	/* max address count from gethostnamadr.c */
+
+/*
+ * Default timeout values.
+ */
+
+#define CONNTIMEOUT	6	/* connect timeout (seconds) */
+#define READTIMEOUT	60	/* read timeout (seconds) */
+
+/*
+ * Prefix for messages on stdout in debug mode.
+ */
+
+#if defined(BIND_49)
+#define DBPREFIX	";; "
+#else
+#define DBPREFIX	""
+#endif

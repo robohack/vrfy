@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)stat.c	e07@nikhef.nl (Eric Wassenaar) 940525";
+static char Version[] = "@(#)stat.c	e07@nikhef.nl (Eric Wassenaar) 961013";
 #endif
 
 #include "vrfy.h"
@@ -77,7 +77,7 @@ int stat;				/* result status */
 {
 	static char buf[BUFSIZ];
 
-	if (stat == EX_OK)
+	if (stat == EX_SUCCESS)
 	{
 		(void) sprintf(buf, "250 Ok");
 		return(buf);
@@ -166,20 +166,14 @@ int stat;				/* result status */
 	char buf[BUFSIZ];
 	register char *p;
 
-	/* fetch basic status message including status code */
-	p = statstring(stat);
-	(void) strcpy(buf, &p[0]);
-
 	if (stat == EX_TEMPFAIL)
 	{
 		if (h_errno == TRY_AGAIN)
 			/* temporary nameserver failure */
 			p = "Hostname lookup failure";
-
 		else if (SmtpErrno != 0)
 			/* non-fatal system call failure */
 			p = errstring(SmtpErrno);
-
 		else
 			/* temporary smtp failure reply message received */
 			p = SmtpErrorBuffer;
@@ -187,19 +181,23 @@ int stat;				/* result status */
 		/* add extra information for temporary failures */
 		if (p == NULL || p[0] == '\0')
 			p = "Transient failure";
-		(void) strcat(buf, ": ");
-		(void) strcat(buf, p);
+
+		(void) sprintf(buf, "%s: %s", statstring(stat), p);
 	}
 	else if (stat == EX_NOHOST && h_errno != 0)
 	{
 		/* add extra information from nameserver */
 		if (h_errno == HOST_NOT_FOUND)
-			(void) strcat(buf, " (Not registered in DNS)");
+			p = "Not registered in DNS";
 		else if (h_errno == NO_ADDRESS)
-			(void) strcat(buf, " (No address or MX record)");
+			p = "No address or MX record";
 		else
-			(void) strcat(buf, " (Nameserver lookup failure)");
+			p = "Nameserver lookup failure";
+
+		(void) sprintf(buf, "%s (%s)", statstring(stat), p);
 	}
+	else
+		(void) sprintf(buf, "%s", statstring(stat));
 
 	/* issue status message */
 	message(buf);

@@ -1,4 +1,4 @@
-	@(#)RELEASE_NOTES       e07@nikhef.nl (Eric Wassenaar) 950410
+	@(#)RELEASE_NOTES       e07@nikhef.nl (Eric Wassenaar) 961113
 
 yymmdd		Description of changes per release
 TODO		Things that still need to be done
@@ -7,6 +7,79 @@ WISHLIST	Wishes expressed by various people
 # ----------------------------------------------------------------------
 # Description of changes per release
 # ----------------------------------------------------------------------
+
+961113
+	Portability fix.
+		Trying to include <strings.h> was a bit over-ambitious
+		and caused confusion on some platforms.
+		There are no functional changes in this release.
+
+961013
+	Bug fix.
+		Fix parsespec() handling of source routes and uucp bang
+		paths. Must copy plain address before checking domain.
+		Bug was introduced in version 961006.
+	Minor fixes.
+		Improve interrupt and error handling in I/O routines.
+		Reject MX records of the wrong resource record class.
+	Miscellaneous changes.
+		Attempt to further reduce lint clutter. It is difficult
+		to eliminate this altogether. There are too many subtle
+		differences between various platforms.
+
+961006
+	Support for ESMTP EHLO command.
+		Optionally use the ESMTP EHLO command instead of HELO.
+		This is forced via the new -H command line option.
+	Support for ESMTP ETRN command.
+		A new -T option enables special ETRN processing at the
+		mx hosts for a given domain. See RFC 1985 for details.
+		Suggested by Robert Harker <harker@harker.com>
+	Configurable default options.
+		Use an environment variable VRFY_DEFAULTS to set
+		default options and parameters. These are interpolated
+		in front of the command line arguments before scanning.
+		Syntax is the same as the command line syntax.
+	More environment variables.
+		Use environment variables to overrule the compiled-in
+		names of the local mail host and several relay hosts.
+	More configurable defaults.
+		The default compiled-in connect and read timeout are
+		now configurable in conf.h.
+	Properly handle tcp packet overflow.
+		If the supplied answer buffer space is insufficient to
+		store the entire answer, res_send() is supposed to
+		return the length of the entire untruncated answer, not
+		the number of bytes that are actually available.
+	Increase MAXPACKET packet buffer size.
+		The traditional value 1024 for the (tcp) packet size is
+		no longer sufficient (see moderators.uu.net MX records).
+		This is now set to the maximum value used internally
+		by the BIND named. The same value is used by dig.
+		Although still static, it should be sufficient.
+	Extra safety checks.
+		After a positive return from an ordinary gethostbyname
+		or gethostbyaddr we cannot be absolutely sure that the
+		size of the canonical h_name is within bounds.
+	Attempt to recognize list (group) syntax.
+		Not many smtp servers are able to handle this properly.
+		Try to extract the pure address list from this syntax.
+	Better diagnose SMTP reply codes.
+		Code 252 was added per RFC 1123 to reject an SMTP VRFY
+		command. This has been implemented by sendmail V8.
+		Consider only 250 and 251 as valid responses.
+	Minor changes.
+		Check some more SMTP reply codes.
+		Guard against potential buffer overflow in some places.
+		Make some extra domain name syntax checks.
+	Miscellaneous cleanup.
+		Update pieces of code and header files to be similar to
+		those used in the host/ping/traceroute utilities.
+		Add various BIND portability fixes.
+	Update manual page.
+		Document the old -h option and the new -H option.
+		Document the new -T option for ETRN processing.
+		Document the new environment variables.
 
 950410
 	Increase various constants.
@@ -19,7 +92,7 @@ WISHLIST	Wishes expressed by various people
 		Issue an SMTP RSET command after MAIL and RCPT during
 		the alternative protocol suite, to reset the session.
 	Miscellaneous glitches.
-		Properly allocat static storage for mx host names.
+		Properly allocate static storage for mx host names.
 		Allow DNS name expansion up to MAXHOST characters.
 		Explicitly call res_init() early in the game.
 	Added this RELEASE_NOTES file.
