@@ -34,52 +34,9 @@
  * for improvements to the author at the given email address,
  * and to not re-distribute your own modifications to others.
  */
-
-/*
- * Released versions.
- *
- *	910617
- *		Add -t option to set read timeout.
- *		Save errno across smtpquit() calls.
- *	911216
- *		Fetch MX records and verify remotely.
- *		Catch special pseudo-domains.
- *		Add -c option to set connect timeout.
- *		Add -p option to ping mx hosts.
- *	920229
- *		Support parsing of full addresses.
- *		Add -f option to verify address files.
- *		Add -l option to handle errors locally.
- *		Implement recursive mode.
- *		Detect forwarding loops.
- *		Add -s option to strip comments.
- *		Improve recursive loop strategy.
- *		Add undocumented -h -o -m -r options.
- *		Add -n option for alternative suite.
- *	921021
- *		Miscellaneous declaration changes.
- *		Add -e option for expn instead of vrfy.
- *		Various sanity checks.
- *		Fix bug in recursion: save old host.
- *		Add version number to all files.
- *	940525
- *		Adapt for DEC Alpha OSF/1, and BIND 4.9.
- *		General portability changes, port.h conf.h exit.h
- *		Configure relay host for unresolved single hostnames.
- *		Handle 8-bit characters and sendmail V8 meta-chars.
- *		Some error messages slightly modified.
- *		In exit status, temp failures override hard failures.
- *	940929
- *		Various portability changes.
- *		Avoid use of sizeof() for all entities that have a fixed
- *		field width, and use predefined constants instead. This
- *		is necessary for systems without 16 or 32 bit integers.
- *		Fix use of ipaddr_t and struct in_addr appropriately.
- *		All this makes the utility portable to e.g. Cray.
- */
 
 #ifndef lint
-static char Version[] = "@(#)vrfy.c	e07@nikhef.nl (Eric Wassenaar) 940929";
+static char Version[] = "@(#)vrfy.c	e07@nikhef.nl (Eric Wassenaar) 950410";
 #endif
 
 /*
@@ -274,8 +231,8 @@ char *argv[];
 {
 	register char *option;
 
-#ifdef obsolete
 	assert(sizeof(u_int) == 4);	/* probably paranoid */
+#ifdef obsolete
 	assert(sizeof(u_short) == 2);	/* perhaps less paranoid */
 	assert(sizeof(ipaddr_t) == 4);	/* but this is critical */
 #endif
@@ -429,6 +386,8 @@ char *argv[];
 /*
  * Set proper resolver options.
  */
+	(void) res_init();
+
 	/* only do RES_DEFNAMES for single host names without dot */
 	_res.options |=  RES_DEFNAMES;
 	_res.options &= ~RES_DNSRCH;
@@ -1232,6 +1191,7 @@ char *host;				/* remote host to be queried */
 	if (reply == EX_OK)
 		reply = smtprcpt(address);
 
+	(void) smtprset();
 	(void) smtpquit();
 	return(reply);
 }

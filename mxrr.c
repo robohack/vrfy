@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)mxrr.c	e07@nikhef.nl (Eric Wassenaar) 940929";
+static char Version[] = "@(#)mxrr.c	e07@nikhef.nl (Eric Wassenaar) 950410";
 #endif
 
 #include "vrfy.h"
@@ -42,9 +42,11 @@ typedef union {
 #define HFIXEDSZ 12		/* actually sizeof(HEADER) */
 #endif
 
-char *MxHosts[MAXMXHOSTS];	/* list of names of mx hosts found */
+#define MAXMXBUFSIZ (MAXMXHOSTS * (MAXHOST+1))
 
-static char hostbuf[MAXMXHOSTS*MAXPACKET];
+static char hostbuf[MAXMXBUFSIZ];
+
+char *MxHosts[MAXMXHOSTS];	/* list of names of mx hosts found */
 
 /*
 ** GETMXBYNAME -- Fetch mx hosts for a domain
@@ -69,7 +71,6 @@ char *domain;				/* domain to get mx hosts for */
 	u_short pref;			/* mx preference value */
 	u_short prefer[MAXMXHOSTS];	/* saved preferences of mx records */
 	char *bp;			/* hostbuf pointer */
-	int buflen;			/* remaining size of hostbuf */
 	int nmx;			/* number of mx hosts found */
 	register int i, j, n;
 
@@ -119,14 +120,13 @@ char *domain;				/* domain to get mx hosts for */
  */
 	nmx = 0;
 	bp = hostbuf;
-	buflen = sizeof(hostbuf);
 
 	while (ancount-- > 0 && cp < eom && nmx < MAXMXHOSTS)
 	{
 		if (verbose >= 4 || debug)
 			(void) p_rr((char *)cp, (char *)&answer, stdout);
 
-		n = dn_expand(msg, eom, cp, (u_char *)bp, buflen);
+		n = dn_expand(msg, eom, cp, (u_char *)bp, MAXHOST);
 		if (n < 0)
 			break;
 		cp += n;
@@ -152,7 +152,7 @@ char *domain;				/* domain to get mx hosts for */
 		pref = _getshort(cp);
 		cp += INT16SZ;
 
-		n = dn_expand(msg, eom, cp, (u_char *)bp, buflen);
+		n = dn_expand(msg, eom, cp, (u_char *)bp, MAXHOST);
 		if (n < 0)
 			break;
 		cp += n;
@@ -163,7 +163,6 @@ char *domain;				/* domain to get mx hosts for */
 
 		n = strlength(bp) + 1;
 		bp += n;
-		buflen -= n;
 	}
 
 /*

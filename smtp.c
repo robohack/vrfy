@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)smtp.c	e07@nikhef.nl (Eric Wassenaar) 940525";
+static char Version[] = "@(#)smtp.c	e07@nikhef.nl (Eric Wassenaar) 950410";
 #endif
 
 #include "vrfy.h"
@@ -88,7 +88,7 @@ char *host;				/* remote host to be contacted */
 		return(EX_TEMPFAIL);
 
 	else if (REPLYTYPE(r) == 2)
-		return (EX_OK);
+		return(EX_OK);
 
 	return(EX_TEMPFAIL);
 }
@@ -119,7 +119,7 @@ char *name;				/* my own fully qualified hostname */
 		return(EX_TEMPFAIL);
 
 	else if (REPLYTYPE(r) == 2)
-		return (EX_OK);
+		return(EX_OK);
 
 	else if (REPLYTYPE(r) == 5)
 		return(EX_UNAVAILABLE);
@@ -190,6 +190,39 @@ char *onoff;				/* some hosts require parameter */
 }
 
 /*
+** SMTPRSET -- Issue the RSET command
+** ----------------------------------
+**
+**	Returns:
+**		Status code indicating success or failure.
+*/
+
+int
+smtprset()
+{
+	register int r;
+
+	smtpmessage("RSET");
+
+	SmtpPhase = "RSET wait";
+	if (debug)
+		printf("smtp phase %s\n", SmtpPhase);
+
+	r = smtpreply();
+
+	if (r < 0 || REPLYTYPE(r) == 4)
+		return(EX_TEMPFAIL);
+
+	else if (REPLYTYPE(r) == 2)
+		return(EX_OK);
+
+	else if (REPLYTYPE(r) == 5)
+		return(EX_UNAVAILABLE);
+
+	return(EX_PROTOCOL);
+}
+
+/*
 ** SMTPMAIL -- Issue the MAIL command
 ** ----------------------------------
 **
@@ -215,7 +248,7 @@ char *address;				/* sender address specification */
 		return(EX_TEMPFAIL);
 
 	else if (r == 250)
-		return (EX_OK);
+		return(EX_OK);
 
 	else if (r == 552 || r == 554)
 		return(EX_UNAVAILABLE);
@@ -251,18 +284,18 @@ char *address;				/* recipient address specification */
 	SmtpPrint = NULL;
 
 	if (r < 0 || REPLYTYPE(r) == 4)
-		return (EX_TEMPFAIL);
+		return(EX_TEMPFAIL);
 
 	else if (REPLYTYPE(r) == 2)
-		return (EX_OK);
+		return(EX_OK);
 
 	else if (r == 550 || r == 551 || r == 553)
-		return (EX_NOUSER);
+		return(EX_NOUSER);
 
 	else if (r == 552 || r == 554)
-		return (EX_UNAVAILABLE);
+		return(EX_UNAVAILABLE);
 
-	return (EX_PROTOCOL);
+	return(EX_PROTOCOL);
 }
 
 /*

@@ -1,4 +1,4 @@
-#	@(#)Makefile            e07@nikhef.nl (Eric Wassenaar) 940929
+#	@(#)Makefile            e07@nikhef.nl (Eric Wassenaar) 950410
 
 # ----------------------------------------------------------------------
 # Adapt the installation directories to your local standards.
@@ -43,6 +43,7 @@ CONFIGDEFS = -DLOCALHOST=\"nikhefh\"
 CONFIGDEFS = -DLOCALHOST=\"nikhapo\"
 CONFIGDEFS = -DLOCALHOST=\"asgard\"
 CONFIGDEFS = -DLOCALHOST=\"rurik\"
+CONFIGDEFS = -DLOCALHOST=\"paramount\"
 
 # Define UUCPRELAY if you have a better place to send uucp addresses.
 CONFIGDEFS = -DUUCPRELAY=LOCALHOST
@@ -116,7 +117,7 @@ SRCS = main.c pars.c smtp.c conn.c stat.c mxrr.c util.c vers.c
 OBJS = main.o pars.o smtp.o conn.o stat.o mxrr.o util.o vers.o
 PROG = vrfy
 MANS = vrfy.1
-DOCS =
+DOCS = RELEASE_NOTES
 
 FILES = Makefile $(DOCS) $(HDRS) $(SRCS) $(MANS)
 

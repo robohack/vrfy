@@ -1,7 +1,7 @@
 /*
 ** Master include file.
 **
-**	@(#)vrfy.h              e07@nikhef.nl (Eric Wassenaar) 940524
+**	@(#)vrfy.h              e07@nikhef.nl (Eric Wassenaar) 950410
 */
 
 #if defined(apollo) && defined(lint)
@@ -44,6 +44,9 @@ typedef int	bool;		/* boolean type */
 #define is_alnum(c)	(isascii(c) && isalnum(c))
 #define is_digit(c)	(isascii(c) && isdigit(c))
 #define is_space(c)	(isascii(c) && isspace(c))
+
+/* check for linear white space */
+#define is_lwsp(c)	((c == ' ') || (c == '\t'))
 
 /* sendmail V8 meta-characters */
 #define is_meta(c)	(((c) & 0340) == 0200)

@@ -1,10 +1,11 @@
 /*
 ** Declaration of functions.
 **
-**	@(#)defs.h              e07@nikhef.nl (Eric Wassenaar) 940524
+**	@(#)defs.h              e07@nikhef.nl (Eric Wassenaar) 950410
 */
 
-/* main.c */
+	/* main.c */
+
 int main();
 void fatal();
 void usrerr();
@@ -23,7 +24,8 @@ int rcpthost();
 int pinghost();
 int getmxhosts();
 
-/* pars.c */
+	/* pars.c */
+
 bool invalidaddr();
 char *find_delim();
 char *parselist();
@@ -34,11 +36,13 @@ char *parsehost();
 char *parsespec();
 bool invalidloop();
 
-/* smtp.c */
+	/* smtp.c */
+
 int smtpinit();
 int smtphelo();
 int smtponex();
 int smtpverb();
+int smtprset();
 int smtpmail();
 int smtprcpt();
 int smtpexpn();
@@ -47,7 +51,8 @@ int smtpquit();
 void smtpmessage();
 int smtpreply();
 
-/* conn.c */
+	/* conn.c */
+
 sigtype_t timer();
 char *sfgets();
 int makeconnection();
@@ -56,19 +61,23 @@ int getmyhostname();
 bool internet();
 ipaddr_t numeric_addr();
 
-/* stat.c */
+	/* stat.c */
+
 char *statstring();
 char *errstring();
 void giveresponse();
 
-/* mxrr.c */
+	/* mxrr.c */
+
 int getmxbyname();
 
-/* util.c */
+	/* util.c */
+
 char *printable();
 char *xalloc();
 
-/* extern */
+	/* extern */
+
 char *fgets();
 char *index();
 char *rindex();

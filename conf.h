@@ -1,7 +1,7 @@
 /*
 ** Various configuration definitions.
 **
-**	@(#)conf.h              e07@nikhef.nl (Eric Wassenaar) 940525
+**	@(#)conf.h              e07@nikhef.nl (Eric Wassenaar) 950410
 */
 
 /*
@@ -51,10 +51,10 @@
  * Various constants.
  */
 
-#define MAXSPEC		256	/* maximum size of single address spec */
+#define MAXSPEC		512	/* maximum size of single address spec */
+#define MAXHOST		256	/* maximum size of an hostname */
 #define MAXREPLY	1200	/* maximum number of replies per query */
 #define MAXHOP		17	/* default maximum recursion level */
 #define MAXLOOP		50	/* maximum useable recursion level */
-#define MAXMXHOSTS	10	/* maximum number of mx hosts */
+#define MAXMXHOSTS	20	/* maximum number of mx hosts */
 #define MAXADDRS	35	/* max address count from gethostnamadr.c */
-#define MAXHOSTNAME	256	/* maximum size of an hostname */

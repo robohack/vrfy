@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)pars.c	e07@nikhef.nl (Eric Wassenaar) 940525";
+static char Version[] = "@(#)pars.c	e07@nikhef.nl (Eric Wassenaar) 950410";
 #endif
 
 #include "vrfy.h"
@@ -36,30 +36,46 @@ static char Version[] = "@(#)pars.c	e07@nikhef.nl (Eric Wassenaar) 940525";
 **		An error message is generated if invalid.
 **
 **	Called before any parsing is attempted.
-**	All control characters are rejected, not only the sendmail
-**	meta-characters, even within comments or quoted strings.
 */
 
 bool
 invalidaddr(addrspec)
 char *addrspec;				/* address specification */
 {
+	bool backslash = FALSE;		/* set if need to escape next char */
+	bool quoting = FALSE;		/* set if within quoted string */
 	register char *p;
 	register char c;
 
 	for (p = addrspec; (c = *p) != '\0'; p++)
 	{
-		/* reject special metacharacters */
+		/* always reject special metacharacters */
 		if (is_meta(c))
 			break;
 
-		/* non-ascii for ordinary 8-bit characters */
-		if (!isascii(c))
-			continue;
-
-		/* reject non-harmless control characters */
-		if (iscntrl(c) && !isspace(c))
+		/* reject embedded newlines without lwsp */
+		if (c == '\n' && !is_lwsp(p[1]))
 			break;
+
+		/* check for unquoted control characters */
+		if (backslash)
+			backslash = FALSE;
+		else if (c == '\\')
+			backslash = TRUE;
+		else if (c == '"')
+			quoting = !quoting;
+		else if (quoting)
+			continue;
+		else
+		{
+			/* non-ascii for ordinary 8-bit characters */
+			if (!isascii(c))
+				continue;
+
+			/* reject non-harmless control characters */
+			if (iscntrl(c) && !isspace(c))
+				break;
+		}
 	}
 
 	if (*p != '\0')
@@ -98,49 +114,40 @@ find_delim(addrspec, delimiter)
 char *addrspec;				/* full address specification */
 char delimiter;				/* delimiter char to search for */
 {
-	bool escaping = FALSE;		/* set if need to escape next char */
+	bool backslash = FALSE;		/* set if need to escape next char */
 	bool quoting = FALSE;		/* set if within quoted string */
 	int comment = 0;		/* level of parenthesized comments */
 	int bracket = 0;		/* level of bracketed addresses */
 	register char *p;
+	register char c;
 
 /*
  * Scan address list, and break when delimiter found.
  */
-	for (p = addrspec; p != NULL && *p != '\0'; p++)
+	for (p = addrspec; (c = *p) != '\0'; p++)
 	{
-		if (escaping)
-			escaping = FALSE;
-		else if (*p == '\\')
-			escaping = TRUE;
-
-		else if (*p == '"')
+		if (backslash)
+			backslash = FALSE;
+		else if (c == '\\')
+			backslash = TRUE;
+		else if (c == '"')
 			quoting = !quoting;
 		else if (quoting)
 			continue;
-
-		else if (*p == delimiter && bracket == 0 && comment == 0)
+		else if (c == delimiter && bracket == 0 && comment == 0)
 			break;
-
-		else if (*p == '(')
+		else if (c == '(')
 			comment++;
-		else if (*p == ')')
-		{
+		else if (c == ')')
 			comment--;
-			if (comment < 0)
-				break;
-		}
 		else if (comment > 0)
 			continue;
-
-		else if (*p == '<')
+		else if (c == '<')
 			bracket++;
-		else if (*p == '>')
-		{
+		else if (c == '>')
 			bracket--;
-			if (bracket < 0)
-				break;
-		}
+		if (bracket < 0 || comment < 0)
+			break;
 	}
 
 /*
