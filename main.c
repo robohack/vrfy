@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)vrfy.c	e07@nikhef.nl (Eric Wassenaar) 961027";
+static char Version[] = "@(#)vrfy.c	e07@nikhef.nl (Eric Wassenaar) 970828";
 #endif
 
 /*
@@ -460,7 +460,7 @@ char *argv[];
 	else
 		list(argv[1]);		/* verify the address list */
 
-	exit(ExitStat);
+	return(ExitStat);
 	/*NOTREACHED*/
 }
 

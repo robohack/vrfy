@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)conn.c	e07@nikhef.nl (Eric Wassenaar) 961013";
+static char Version[] = "@(#)conn.c	e07@nikhef.nl (Eric Wassenaar) 970826";
 #endif
 
 #include "vrfy.h"
@@ -146,7 +146,7 @@ FILE **infile;				/* smtp input channel */
 
 		hp = gethostbyaddr((char *)&inaddr[0], INADDRSZ, AF_INET);
 		if (hp != NULL)
-			host = hp->h_name;
+			host = (char *)hp->h_name;
 	}
 	else
 	{
@@ -164,7 +164,7 @@ FILE **infile;				/* smtp input channel */
 			/* no address found by nameserver */
 			return(EX_NOHOST);
 		}
-		host = hp->h_name;
+		host = (char *)hp->h_name;
 
 		for (i = 0; i < MAXADDRS && hp->h_addr_list[i]; i++)
 			inaddr[i] = incopy(hp->h_addr_list[i]);

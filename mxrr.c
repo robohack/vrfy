@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)mxrr.c	e07@nikhef.nl (Eric Wassenaar) 961013";
+static char Version[] = "@(#)mxrr.c	e07@nikhef.nl (Eric Wassenaar) 970828";
 #endif
 
 #include "vrfy.h"
@@ -108,8 +108,8 @@ char *domain;				/* domain to get mx hosts for */
  * Valid answer received. Skip the query record.
  */
 	hp = (HEADER *)&answer;
-	qdcount = ntohs(hp->qdcount);
-	ancount = ntohs(hp->ancount);
+	qdcount = ntohs((u_short)hp->qdcount);
+	ancount = ntohs((u_short)hp->ancount);
 
 	msg = (u_char *)&answer;
 	eom = (u_char *)&answer + n;
