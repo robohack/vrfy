@@ -1,4 +1,4 @@
-	@(#)RELEASE_NOTES       e07@nikhef.nl (Eric Wassenaar) 980626
+	@(#)RELEASE_NOTES       e07@nikhef.nl (Eric Wassenaar) 980820
 
 	URL	ftp://ftp.nikhef.nl/pub/network/vrfy.tar.Z
 
@@ -9,6 +9,15 @@ WISHLIST	Wishes expressed by various people
 # ----------------------------------------------------------------------
 # Description of changes per release
 # ----------------------------------------------------------------------
+
+980820
+	Recognize :include: syntax.
+		Don't attempt to verify :include:s at SMTP servers.
+		They may be encountered when verifying files. Handle
+		them locally. Requires provisions for recursive calls
+		of the file scanning module.
+	Recognize /pathname and "|program" syntax.
+		Don't attempt to verify those at SMTP servers either.
 
 980626
 	Recognize new SMTP reply codes.
