@@ -5,10 +5,10 @@
 # ----------------------------------------------------------------------
 
 # This is where the vrfy executable will go.
-DESTBIN = /usr/local/bin
+DESTBIN = /local/bin
 
 # This is where the vrfy manual page will go.
-DESTMAN = /usr/local/man
+DESTMAN = /local/share/man
 
 BINDIR = $(DESTBIN)
 MANDIR = $(DESTMAN)/man1
@@ -70,7 +70,7 @@ CFLAGS = $(COPTS) $(DEFS)
 # Select your favorite compiler.
 CC = cc
 CC = /usr/ucb/cc			#if defined(solaris) && BSD
-CC = /bin/cc
+CC = cc
 
 # ----------------------------------------------------------------------
 # Linking definitions.
@@ -85,9 +85,9 @@ CC = /bin/cc
 RES = ../res/libresolv.a
 RES = -lresolv
 
-COMPLIB =
 COMPLIB = ../compat/lib/lib44bsd.a
 COMPLIB = -lnet
+COMPLIB =
 
 LIBS = -lsocket -lnsl			#if defined(solaris) && not BSD
 LIBS =
@@ -131,7 +131,7 @@ $(PROG): $(OBJS)
 	$(CC) $(LDFLAGS) -o $(PROG) $(OBJS) $(LIBRARIES)
 
 install: $(PROG)
-	$(INSTALL) -m 755 -s $(PROG) $(BINDIR)
+	$(INSTALL) -m 755 $(PROG) $(BINDIR)
 
 man: $(MANS)
 	$(INSTALL) -m 444 vrfy.1 $(MANDIR)
