@@ -2,8 +2,8 @@
 # Adapt the installation directories to your local standards.
 # ----------------------------------------------------------------------
 
-BINDIR = /usr/local/bin
-MANDIR = /usr/local/man/man1
+BINDIR = /local/bin
+MANDIR = /local/share/man/man1
 
 # ----------------------------------------------------------------------
 # Special compilation options are needed only on a few platforms.
@@ -13,7 +13,8 @@ MANDIR = /usr/local/man/man1
 #	SYSDEFS = -D_BSD -D_BSD_INCLUDES -U__STR__ -DBIT_ZERO_ON_LEFT
 #endif
 
-SYSDEFS =
+SYSDEFS = -I/local/include
+SYSLDF = -L/local/lib
 
 # ----------------------------------------------------------------------
 # Compilation definitions.
@@ -28,11 +29,14 @@ SYSDEFS =
 # Define EARNRELAY if you know where to send earn/bitnet addresses.
 #	DEFS = -DEARNRELAY=LOCALHOST
 
-DEFS =
+#DEFS = -DUUCPRELAY=\"nirv.web.net\"
 
-CFLAGS = -O $(DEFS) $(SYSDEFS)
+OPTIM = -O
+SDB =#-g
+CFLAGS = $(SDB) $(OPTIM) $(DEFS) $(SYSDEFS)
+LDFLAGS = $(SDB) $(SYSLDF)
 
-CC = /bin/cc
+CC = /usr/5bin/cc
 
 # ----------------------------------------------------------------------
 # Files.
@@ -53,9 +57,9 @@ FILES = Makefile $(HDRS) $(SRCS) $(MANS)
 # It is safe to leave it out and use your default library.
 # ----------------------------------------------------------------------
 
-LIBS = ../resolver/libresolv.a
+#LIBS = ../resolver/libresolv.a
 LIBS = -lresolv
-LIBS = -lresolv -lnet
+#LIBS = -lresolv -lnet
 
 # ----------------------------------------------------------------------
 # Rules for installation.
@@ -64,12 +68,10 @@ LIBS = -lresolv -lnet
 all: $(PROG)
 
 $(PROG): $(OBJS)
-	$(CC) -o $(PROG) $(OBJS) $(LIBS)
+	$(CC) $(LDFLAGS) -o $(PROG) $(OBJS) $(LIBS)
 
 install: $(PROG)
 	install -c -m 755 -s $(PROG) $(BINDIR)
-
-man:
 	install -c -m 444 vrfy.1 $(MANDIR)
 
 clean:
