@@ -19,72 +19,21 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)conn.c	e07@nikhef.nl (Eric Wassenaar) 921012";
+static char Version[] = "@(#)conn.c	e07@nikhef.nl (Eric Wassenaar) 950410";
 #endif
 
-#include <stdio.h>
-#include <errno.h>
-#include <signal.h>
-#include <setjmp.h>
-#include <sysexits.h>
-#include <netdb.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+#include "vrfy.h"
 
-#if defined(sparc) || defined(hpux) || defined(_AIX) || defined(ultrix)
-typedef void	sig_t;
-#else
-typedef int	sig_t;
-#endif
-
-typedef int	bool;
-#define TRUE	1
-#define FALSE	0
-
-#ifdef lint
-#define EXTERN
-#else
-#define EXTERN extern
-#endif
-
-EXTERN int errno;
-EXTERN int h_errno;		/* defined in gethostnamadr.c */
 extern int verbose;
 extern int debug;
 
 #define incopy(a)	*((struct in_addr *)a)
-
-#define NOT_DOTTED_QUAD	((u_long)-1)
-
-#define MAXHOSTNAME 256		/* maximum size of an hostname */
-
-#define MAXADDRS 35		/* max address count from gethostnamadr.c */
 
 char *CurHostName = NULL;	/* remote host we are connecting to */
 char *MyHostName = NULL;	/* my own fully qualified host name */
 
 int ConnTimeout = 6;		/* timeout in secs for connect */
 int ReadTimeout = 60;		/* timeout in secs for read reply */
-
-extern void exit();
-extern char *fgets();
-extern char *index();
-extern char *strncpy();
-extern char *inet_ntoa();
-extern u_long inet_addr();
-
-/* conn.c */
-static sig_t timer();
-char *sfgets();
-int makeconnection();
-void setmyhostname();
-int getmyhostname();
-bool internet();
-u_long numeric_addr();
-
-/* stat.c */
-void giveresponse();
 
 /*
 ** SFGETS -- Read an input line, using timeout
@@ -97,7 +46,7 @@ void giveresponse();
 
 static jmp_buf Timeout;
 
-static sig_t
+sigtype_t
 /*ARGSUSED*/
 timer(sig)
 int sig;
@@ -150,10 +99,10 @@ FILE **infile;				/* smtp input channel */
 	struct hostent *hp;
 	struct servent *sp;
 	struct sockaddr_in sin;
-	static char hostname[MAXHOSTNAME+1];
+	static char hostname[MAXHOST+1];
 	struct in_addr inaddr[MAXADDRS];
 	int naddrs;
-	u_long addr;
+	ipaddr_t addr;
 	int sock;
 	register int i;
 
@@ -181,12 +130,12 @@ FILE **infile;				/* smtp input channel */
  */
 	if (addr != NOT_DOTTED_QUAD)
 	{
-		hp = gethostbyaddr((char *)&addr, sizeof(addr), AF_INET);
-		if (hp != NULL)
-			host = hp->h_name;
-
 		inaddr[0].s_addr = addr;
 		naddrs = 1;
+
+		hp = gethostbyaddr((char *)&inaddr[0], INADDRSZ, AF_INET);
+		if (hp != NULL)
+			host = hp->h_name;
 	}
 	else
 	{
@@ -211,7 +160,7 @@ FILE **infile;				/* smtp input channel */
 		naddrs = i;
 	}
 
-	(void) strncpy(hostname, host, MAXHOSTNAME);
+	(void) strncpy(hostname, host, MAXHOST);
 	CurHostName = hostname;
 
 /*
@@ -234,7 +183,7 @@ FILE **infile;				/* smtp input channel */
 		if (verbose >= 2 || debug)
 		{
 			printf("connecting to %s (%s) port %d\n", CurHostName,
-				inet_ntoa(sin.sin_addr), sin.sin_port);
+				inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 		}
 
 		if (setjmp(Timeout) != 0)
@@ -264,7 +213,15 @@ FILE **infile;				/* smtp input channel */
 		*infile  = fdopen(dup(sock), "r");
 
 		if (*infile == NULL || *outfile == NULL)
+		{
+			int err = errno;
+			if (*infile != NULL)
+				(void) fclose(*infile);
+			if (*outfile != NULL)
+				(void) fclose(*outfile);
+			errno = err;
 			return(EX_TEMPFAIL);
+		}
 
 		if (debug)
 			printf("connected to %s\n", CurHostName);
@@ -291,7 +248,7 @@ FILE **infile;				/* smtp input channel */
 void
 setmyhostname()
 {
-	static char hostname[MAXHOSTNAME+1];
+	static char hostname[MAXHOST+1];
 	int status;
 
 	if (MyHostName == NULL)
@@ -327,7 +284,7 @@ char *hostname;				/* buffer to store host name */
 	errno = 0;
 	h_errno = 0;
 
-	if (gethostname(hostname, MAXHOSTNAME) < 0)
+	if (gethostname(hostname, MAXHOST) < 0)
 	{
 		perror("gethostname");
 		return(EX_OSERR);
@@ -348,7 +305,7 @@ char *hostname;				/* buffer to store host name */
 		return(EX_NOHOST);
 	}
 
-	(void) strncpy(hostname, hp->h_name, MAXHOSTNAME);
+	(void) strncpy(hostname, hp->h_name, MAXHOST);
 	return(EX_OK);
 }
 
@@ -368,7 +325,7 @@ bool
 internet(host)
 char *host;				/* host name to check */
 {
-	u_long addr;
+	ipaddr_t addr;
 	struct hostent *hp;
 
 	/* check dotted quad between brackets */
@@ -399,11 +356,11 @@ char *host;				/* host name to check */
 **		NOT_DOTTED_QUAD if not.
 */
 
-u_long
+ipaddr_t
 numeric_addr(host)
 char *host;				/* host name to check */
 {
-	u_long addr;
+	ipaddr_t addr;
 	register char *p;
 
 	if (host[0] != '[')

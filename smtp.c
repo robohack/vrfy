@@ -19,17 +19,13 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)smtp.c	e07@nikhef.nl (Eric Wassenaar) 921012";
+static char Version[] = "@(#)smtp.c	e07@nikhef.nl (Eric Wassenaar) 950410";
 #endif
 
-#include <stdio.h>
-#include <sysexits.h>
-#include <errno.h>
-#include <ctype.h>
+#include "vrfy.h"
 
 extern int verbose;
 extern int debug;
-extern int errno;
 
 #define REPLYTYPE(r) ((r)/100)	/* first digit of smtp reply code */
 #define SMTPCLOSING	421	/* "Service Shutting Down" temp failure */
@@ -47,29 +43,6 @@ char *SmtpPhase = NULL;		/* connection state message */
 char *SmtpPrint = NULL;		/* phase to print and process replies */
 int SmtpState = SMTP_CLOSED;	/* current connection state */
 int SmtpErrno = 0;		/* saved errno from system calls */
-
-extern char *strcpy();
-extern char *index();
-
-/* smtp.c */
-int smtpinit();
-int smtphelo();
-int smtponex();
-int smtpverb();
-int smtpmail();
-int smtprcpt();
-int smtpexpn();
-int smtpvrfy();
-int smtpquit();
-static void smtpmessage();
-static int smtpreply();
-
-/* main.c */
-void answer();
-
-/* conn.c */
-int makeconnection();
-char *sfgets();
 
 /*
 ** SMTPINIT -- Initiate SMTP connection with remote host
@@ -115,7 +88,7 @@ char *host;				/* remote host to be contacted */
 		return(EX_TEMPFAIL);
 
 	else if (REPLYTYPE(r) == 2)
-		return (EX_OK);
+		return(EX_OK);
 
 	return(EX_TEMPFAIL);
 }
@@ -146,7 +119,7 @@ char *name;				/* my own fully qualified hostname */
 		return(EX_TEMPFAIL);
 
 	else if (REPLYTYPE(r) == 2)
-		return (EX_OK);
+		return(EX_OK);
 
 	else if (REPLYTYPE(r) == 5)
 		return(EX_UNAVAILABLE);
@@ -217,6 +190,39 @@ char *onoff;				/* some hosts require parameter */
 }
 
 /*
+** SMTPRSET -- Issue the RSET command
+** ----------------------------------
+**
+**	Returns:
+**		Status code indicating success or failure.
+*/
+
+int
+smtprset()
+{
+	register int r;
+
+	smtpmessage("RSET");
+
+	SmtpPhase = "RSET wait";
+	if (debug)
+		printf("smtp phase %s\n", SmtpPhase);
+
+	r = smtpreply();
+
+	if (r < 0 || REPLYTYPE(r) == 4)
+		return(EX_TEMPFAIL);
+
+	else if (REPLYTYPE(r) == 2)
+		return(EX_OK);
+
+	else if (REPLYTYPE(r) == 5)
+		return(EX_UNAVAILABLE);
+
+	return(EX_PROTOCOL);
+}
+
+/*
 ** SMTPMAIL -- Issue the MAIL command
 ** ----------------------------------
 **
@@ -242,7 +248,7 @@ char *address;				/* sender address specification */
 		return(EX_TEMPFAIL);
 
 	else if (r == 250)
-		return (EX_OK);
+		return(EX_OK);
 
 	else if (r == 552 || r == 554)
 		return(EX_UNAVAILABLE);
@@ -278,18 +284,18 @@ char *address;				/* recipient address specification */
 	SmtpPrint = NULL;
 
 	if (r < 0 || REPLYTYPE(r) == 4)
-		return (EX_TEMPFAIL);
+		return(EX_TEMPFAIL);
 
 	else if (REPLYTYPE(r) == 2)
-		return (EX_OK);
+		return(EX_OK);
 
 	else if (r == 550 || r == 551 || r == 553)
-		return (EX_NOUSER);
+		return(EX_NOUSER);
 
 	else if (r == 552 || r == 554)
-		return (EX_UNAVAILABLE);
+		return(EX_UNAVAILABLE);
 
-	return (EX_PROTOCOL);
+	return(EX_PROTOCOL);
 }
 
 /*
@@ -454,10 +460,11 @@ smtpquit()
 **	The command is always followed by a CR/LF combination.
 */
 
-static void
+void
 /*VARARGS1*/
 smtpmessage(fmt, a, b, c)
 char *fmt;				/* format of message */
+char *a, *b, *c;			/* optional arguments */
 {
 	if (SmtpOut != NULL)
 	{
@@ -486,10 +493,10 @@ char *fmt;				/* format of message */
 **		Sets SmtpErrno appropriately.
 **
 **	Side effects:
-**		Calls answer() to process response if requested.
+**		Calls response() to process response if requested.
 */
 
-static int
+int
 smtpreply()
 {
 	register int r;
@@ -532,7 +539,7 @@ smtpreply()
 			printf("<<< %s\n", SmtpReplyBuffer);
 
 		/* if continuation is required, we can go on */
-		if (!isdigit(SmtpReplyBuffer[0]))
+		if (!is_digit(SmtpReplyBuffer[0]))
 			continue;
 
 		/* decode the reply code */
@@ -542,9 +549,9 @@ smtpreply()
 		if (r < 100)
 			continue;
 
-		/* process answer if requested */
+		/* process response if requested */
 		if (SmtpPrint != NULL && strcmp(SmtpPhase, SmtpPrint) == 0)
-			answer(SmtpReplyBuffer);
+			response(SmtpReplyBuffer);
 
 		/* if continuation is required, we can go on */
 		if (SmtpReplyBuffer[3] == '-')

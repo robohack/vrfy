@@ -19,38 +19,24 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)stat.c	e07@nikhef.nl (Eric Wassenaar) 921012";
+static char Version[] = "@(#)stat.c	e07@nikhef.nl (Eric Wassenaar) 940525";
 #endif
 
-#include <stdio.h>
-#include <errno.h>
-#include <netdb.h>
-#include <sysexits.h>
+#include "vrfy.h"
 
 extern char *sys_errlist[];
 extern int sys_nerr;
-extern int h_errno;
 
 extern int SmtpErrno;		/* saved errno from system calls */
 extern char *SmtpPhase;		/* connection state message */
 extern char *CurHostName;	/* remote host that is being contacted */
 extern char SmtpErrorBuffer[];	/* smtp temporary failure message */
 
-extern char *strcpy();
-extern char *strcat();
-
-/* stat.c */
-char *statstring();
-char *errstring();
-void giveresponse();
-
-/* main.c */
-void message();
-
 
 /*
  * Status messages.
  */
+
 static char *SysExMsg[] =
 {
 	/* 64 EX_USAGE       */	"500 Bad usage",
@@ -74,6 +60,8 @@ static char *SysExMsg[] =
 };
 
 static int N_SysEx = sizeof(SysExMsg) / sizeof(SysExMsg[0]);
+
+#define EX__BASE EX_USAGE
 
 /*
 ** STATSTRING -- Fetch message describing result status
@@ -123,7 +111,11 @@ int err;				/* errno from system calls */
 	{
 	    case ETIMEDOUT:
 	    case ECONNRESET:
-		(void) strcpy(buf, sys_errlist[err]);
+	    case EIO:
+		if (err == ECONNRESET)
+			(void) strcpy(buf, "Connection reset");
+		else
+			(void) strcpy(buf, sys_errlist[err]);
 		if (SmtpPhase != NULL)
 		{
 			(void) strcat(buf, " during ");
@@ -136,10 +128,13 @@ int err;				/* errno from system calls */
 		}
 		return(buf);
 
+	    case EHOSTUNREACH:
 	    case EHOSTDOWN:
+	    case ENETUNREACH:
+	    case ENETDOWN:
 		if (CurHostName == NULL)
 			break;
-		(void) sprintf(buf, "Host %s is down", CurHostName);
+		(void) sprintf(buf, "Host %s is unreachable", CurHostName);
 		return(buf);
 
 	    case ECONNREFUSED:
@@ -179,7 +174,7 @@ int stat;				/* result status */
 	{
 		if (h_errno == TRY_AGAIN)
 			/* temporary nameserver failure */
-			p = "Host name lookup failure";
+			p = "Hostname lookup failure";
 
 		else if (SmtpErrno != 0)
 			/* non-fatal system call failure */
@@ -190,17 +185,16 @@ int stat;				/* result status */
 			p = SmtpErrorBuffer;
 
 		/* add extra information for temporary failures */
-		if (p != NULL && *p != '\0')
-		{
-			(void) strcat(buf, ": ");
-			(void) strcat(buf, p);
-		}
+		if (p == NULL || p[0] == '\0')
+			p = "Transient failure";
+		(void) strcat(buf, ": ");
+		(void) strcat(buf, p);
 	}
 	else if (stat == EX_NOHOST && h_errno != 0)
 	{
 		/* add extra information from nameserver */
 		if (h_errno == HOST_NOT_FOUND)
-			(void) strcat(buf, " (Authoritative answer)");
+			(void) strcat(buf, " (Not registered in DNS)");
 		else if (h_errno == NO_ADDRESS)
 			(void) strcat(buf, " (No address or MX record)");
 		else

@@ -1,0 +1,80 @@
+	@(#)RELEASE_NOTES       e07@nikhef.nl (Eric Wassenaar) 950410
+
+yymmdd		Description of changes per release
+TODO		Things that still need to be done
+WISHLIST	Wishes expressed by various people
+
+# ----------------------------------------------------------------------
+# Description of changes per release
+# ----------------------------------------------------------------------
+
+950410
+	Increase various constants.
+		Change MAXSPEC from 256 to 512.
+		Change MAXMXHOSTS from 10 to 20 conforming to sendmail.
+	Refine test for invalid address.
+		Disallow only unquoted control characters.
+		No embedded newlines without linear white space.
+	Add smtprset().
+		Issue an SMTP RSET command after MAIL and RCPT during
+		the alternative protocol suite, to reset the session.
+	Miscellaneous glitches.
+		Properly allocat static storage for mx host names.
+		Allow DNS name expansion up to MAXHOST characters.
+		Explicitly call res_init() early in the game.
+	Added this RELEASE_NOTES file.
+
+940929
+	Various portability changes.
+		Avoid use of sizeof() for all entities that have a fixed
+		field width, and use predefined constants instead. This
+		is necessary for systems without 16 or 32 bit integers.
+		Fix use of ipaddr_t and struct in_addr appropriately.
+		All this makes the utility portable to e.g. Cray.
+
+940525
+	General portability changes.
+		Adapt for DEC Alpha OSF/1, and BIND 4.9.
+		Add header files port.h conf.h exit.h
+	Miscellaneous additions.
+		Configure relay host for unresolved single hostnames.
+		Handle 8-bit characters and sendmail V8 meta-chars.
+		Some error messages slightly modified.
+		In exit status, temp failures override hard failures.
+
+921021
+	Miscellaneous declaration changes.
+	Add -e option for expn instead of vrfy.
+	Various sanity checks.
+	Fix bug in recursion: save old host.
+	Add version number to all files.
+
+920229
+	Support parsing of full addresses.
+	Add -f option to verify address files.
+	Add -l option to handle errors locally.
+	Implement recursive mode.
+	Detect forwarding loops.
+	Add -s option to strip comments.
+	Improve recursive loop strategy.
+	Add undocumented -h -o -m -r options.
+	Add -n option for alternative suite.
+
+911216
+	Fetch MX records and verify remotely.
+	Catch special pseudo-domains.
+	Add -c option to set connect timeout.
+	Add -p option to ping mx hosts.
+
+910617
+	Add -t option to set read timeout.
+	Save errno across smtpquit() calls.
+
+# ----------------------------------------------------------------------
+# TODO
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# WISHLIST
+# ----------------------------------------------------------------------
+
