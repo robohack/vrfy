@@ -1,7 +1,7 @@
 /*
 ** Master include file of the vrfy utility.
 **
-**	@(#)vrfy.h              e07@nikhef.nl (Eric Wassenaar) 971222
+**	@(#)vrfy.h              e07@nikhef.nl (Eric Wassenaar) 980820
 */
 
 #if defined(apollo) && defined(lint)
@@ -59,10 +59,15 @@ EXTERN res_state_t _res;	/* defined in res_init.c */
 #define is_space(c)	(isascii(c) && isspace(c))
 
 /* check for linear white space */
-#define is_lwsp(c)	((c == ' ') || (c == '\t'))
+#define is_lwsp(c)	(((c) == ' ') || ((c) == '\t'))
 
 /* sendmail V8 meta-characters */
 #define is_meta(c)	(((c) & 0340) == 0200)
+
+/* special address syntax */
+#define file_addr(a)	((a)[0] == '/')
+#define prog_addr(a)	((a)[0] == '|' || ((a)[0] == '"' && (a)[1] == '|'))
+#define incl_addr(a)	(strncmp(a, ":include:", 9) == 0)
 
 #ifdef DEBUG
 #define assert(condition)\

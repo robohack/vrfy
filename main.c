@@ -36,8 +36,10 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)vrfy.c	e07@nikhef.nl (Eric Wassenaar) 971113";
+static char Version[] = "@(#)vrfy.c	e07@nikhef.nl (Eric Wassenaar) 980820";
 #endif
+
+#include "vrfy.h"
 
 /*
  *			Overview
@@ -182,8 +184,6 @@ Special: [-L level] [-R] [-S sender] [-n] [-e] [-h] [-H]\
 ";
 
 
-#include "vrfy.h"
-
 char **optargv = NULL;		/* argument list including default options */
 int optargc = 0;		/* number of arguments in new argument list */
 
@@ -920,16 +920,23 @@ char *filename;				/* name of file to be verified */
 	int status;			/* result status */
 	FILE *fp;
 	char buf[BUFSIZ];
+	char *SaveFile;
+	int SaveLine;
 	register char *p;
+
+/*
+ * Save state across recursive calls.
+ */
+	SaveFile = FileName;
+	SaveLine = LineNumber;
 
 /*
  * Allow the use of vrfy -f as a filter.
  */
 	if (filename == NULL || *filename == '\0')
-	{
 		filename = "stdin";
+	if (sameword(filename, "stdin"))
 		fp = stdin;
-	}
 	else
 		fp = fopen(filename, "r");
 
@@ -988,7 +995,12 @@ char *filename;				/* name of file to be verified */
 
 	if (fp != stdin)
 		(void) fclose(fp);
-	FileName = NULL;
+
+/*
+ * Restore state.
+ */
+	FileName = SaveFile;
+	LineNumber = SaveLine;
 }
 
 /*
@@ -1140,9 +1152,22 @@ char *host;				/* remote host to be queried */
 
 /*
  * Query local host for local addresses without domain part.
+ * Handle special /filename, "|program", and :include: syntax locally.
  */
 	if (sameword(domain, "localhost"))
 	{
+		if (file_addr(addrbuf) || prog_addr(addrbuf))
+		{
+			printf("%s\n", addrbuf);
+			return;
+		}
+
+		if (incl_addr(addrbuf))
+		{
+			file(&addrbuf[9]);
+			return;
+		}
+
 		host = localhost;
 		status = verify(address, host);
 		show(status, host);
