@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)conn.c	e07@nikhef.nl (Eric Wassenaar) 950410";
+static char Version[] = "@(#)conn.c	e07@nikhef.nl (Eric Wassenaar) 961013";
 #endif
 
 #include "vrfy.h"
@@ -27,13 +27,14 @@ static char Version[] = "@(#)conn.c	e07@nikhef.nl (Eric Wassenaar) 950410";
 extern int verbose;
 extern int debug;
 
-#define incopy(a)	*((struct in_addr *)a)
+#define incopy(a)	*((struct in_addr *)(a))
+#define setalarm(n)	(void) alarm((unsigned int)(n))
 
 char *CurHostName = NULL;	/* remote host we are connecting to */
 char *MyHostName = NULL;	/* my own fully qualified host name */
 
-int ConnTimeout = 6;		/* timeout in secs for connect */
-int ReadTimeout = 60;		/* timeout in secs for read reply */
+int ConnTimeout = CONNTIMEOUT;	/* timeout in secs for connect */
+int ReadTimeout = READTIMEOUT;	/* timeout in secs for read reply */
 
 /*
 ** SFGETS -- Read an input line, using timeout
@@ -52,6 +53,7 @@ timer(sig)
 int sig;
 {
 	longjmp(Timeout, 1);
+	/*NOTREACHED*/
 }
 
 
@@ -61,7 +63,7 @@ char *buf;				/* input buffer */
 int size;				/* size of input buffer */
 FILE *fp;				/* input channel */
 {
-	register char *p;
+	register char *p = NULL;
 
 	if (setjmp(Timeout) != 0)
 	{
@@ -70,16 +72,25 @@ FILE *fp;				/* input channel */
 	}
 
 	(void) signal(SIGALRM, timer);
-	(void) alarm((unsigned)ReadTimeout);
-	p = fgets(buf, size, fp);
-	if (errno == EINTR)
-		errno = ETIMEDOUT;
-	(void) alarm((unsigned)0);
+	setalarm(ReadTimeout);
+	while ((p == NULL) && !feof(fp) && !ferror(fp))
+	{
+		errno = 0;
+		p = fgets(buf, size, fp);
+		if (errno == EINTR)
+			clearerr(fp);
+	}
+	setalarm(0);
+
+	if ((p == NULL) && feof(fp) && (errno == 0))
+		errno = ECONNRESET;
+	if ((p == NULL) && ferror(fp) && (errno == 0))
+		errno = EIO;
 	return(p);
 }
 
 /*
-** MAKECONNECTION -- Establish SMTP connection to renote host
+** MAKECONNECTION -- Establish SMTP connection to remote host
 ** ----------------------------------------------------------
 **
 **	Returns:
@@ -161,6 +172,7 @@ FILE **infile;				/* smtp input channel */
 	}
 
 	(void) strncpy(hostname, host, MAXHOST);
+	hostname[MAXHOST] = '\0';
 	CurHostName = hostname;
 
 /*
@@ -194,11 +206,11 @@ FILE **infile;				/* smtp input channel */
 		}
 
 		(void) signal(SIGALRM, timer);
-		(void) alarm((unsigned)ConnTimeout);
+		setalarm(ConnTimeout);
 		if (connect(sock, (struct sockaddr *)&sin, sizeof(sin)) < 0)
 		{
 			int err = errno;
-			(void) alarm((unsigned)0);
+			setalarm(0);
 			(void) close(sock);
 			errno = err;
 			if (errno == EINTR)
@@ -207,7 +219,7 @@ FILE **infile;				/* smtp input channel */
 				return(EX_TEMPFAIL);
 			continue;
 		}
-		(void) alarm((unsigned)0);
+		setalarm(0);
 
 		*outfile = fdopen(sock, "w");
 		*infile  = fdopen(dup(sock), "r");
@@ -228,7 +240,7 @@ FILE **infile;				/* smtp input channel */
 
 		errno = 0;
 		h_errno = 0;
-		return(EX_OK);
+		return(EX_SUCCESS);
 	}
 
 	return(EX_TEMPFAIL);
@@ -254,7 +266,7 @@ setmyhostname()
 	if (MyHostName == NULL)
 	{
 		status = getmyhostname(hostname);
-		if (status != EX_OK)
+		if (status != EX_SUCCESS)
 		{
 			giveresponse(status);
 			exit(status);
@@ -289,6 +301,7 @@ char *hostname;				/* buffer to store host name */
 		perror("gethostname");
 		return(EX_OSERR);
 	}
+	hostname[MAXHOST] = '\0';
 
 	hp = gethostbyname(hostname);
 	if (hp == NULL)
@@ -306,7 +319,8 @@ char *hostname;				/* buffer to store host name */
 	}
 
 	(void) strncpy(hostname, hp->h_name, MAXHOST);
-	return(EX_OK);
+	hostname[MAXHOST] = '\0';
+	return(EX_SUCCESS);
 }
 
 /*
@@ -319,6 +333,12 @@ char *hostname;				/* buffer to store host name */
 **
 **	The given name can be a dotted quad, perhaps between
 **	square brackets. If not, an A resource record must exist.
+**
+**	Note that we do not check the status after a negative return
+**	from gethostbyname. Failure can be due to nameserver timeout,
+**	in which case the result is still undecided.
+**	Currently we consider this an error, so that we won't retry
+**	such host during recursive lookups.
 */
 
 bool

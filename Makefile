@@ -5,10 +5,10 @@
 # ----------------------------------------------------------------------
 
 # This is where the vrfy executable will go.
-DESTBIN = /local/bin
+DESTBIN = /usr/local/bin
 
 # This is where the vrfy manual page will go.
-DESTMAN = /local/share/man
+DESTMAN = /usr/local/man
 
 BINDIR = $(DESTBIN)
 MANDIR = $(DESTMAN)/man1
@@ -68,9 +68,9 @@ COPTS = -O
 CFLAGS = $(COPTS) $(DEFS)
 
 # Select your favorite compiler.
+CC = /usr/ucb/cc			#if defined(solaris) && BSD
 CC = /bin/cc -arch m68k -arch i386	#if defined(next)
 CC = /bin/cc
-CC = /usr/5bin/cc
 CC = cc
 
 # ----------------------------------------------------------------------
@@ -143,7 +143,7 @@ $(PROG): $(OBJS)
 	$(CC) $(LDFLAGS) -o $(PROG) $(OBJS) $(LIBRARIES)
 
 install: $(PROG)
-	$(INSTALL) -m 755 $(PROG) $(BINDIR)
+	$(INSTALL) -m 755 -s $(PROG) $(BINDIR)
 
 man: $(MANS)
 	$(INSTALL) -m 444 vrfy.1 $(MANDIR)

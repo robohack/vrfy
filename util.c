@@ -19,10 +19,38 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)util.c	e07@nikhef.nl (Eric Wassenaar) 940525";
+static char Version[] = "@(#)util.c	e07@nikhef.nl (Eric Wassenaar) 961006";
 #endif
 
 #include "vrfy.h"
+
+/*
+** MAXSTR -- Ensure string does not exceed maximum size
+** ----------------------------------------------------
+**
+**	Returns:
+**		Pointer to the (possibly truncated) string.
+**
+**	If necessary, a new string is allocated, and is then
+**	truncated, and the original string is left intact.
+**	Otherwise the original string is truncated in place.
+**
+*/
+
+char *
+maxstr(string, n, save)
+char *string;				/* the string to check */
+int n;					/* the maximum allowed size */
+bool save;				/* allocate new string, if set */
+{
+	if (strlength(string) > n)
+	{
+		if (save)
+			string = newstr(string);
+		string[n] = '\0';
+	}
+	return(string);
+}
 
 /*
 ** PRINTABLE -- Expand quote bits/control chars in a string
@@ -30,19 +58,24 @@ static char Version[] = "@(#)util.c	e07@nikhef.nl (Eric Wassenaar) 940525";
 **
 **	Returns:
 **		Pointer to static buffer containing the expansion.
+**
+**	The expanded string is silently truncated if it gets too long.
 */
 
 char *
 printable(string)
 char *string;				/* the string to expand */
 {
-	static char buf[2*BUFSIZ];	/* expanded string buffer */
+	static char buf[BUFSIZ];	/* expanded string buffer */
 	register char *p = buf;
 	register char *s = string;
 	register char c;
 
 	while ((c = *s++) != '\0')
 	{
+		if (p >= buf + sizeof(buf) - 4)
+			break;
+
 		if (!isascii(c))
 		{
 			*p++ = '\\';
@@ -61,27 +94,47 @@ char *string;				/* the string to expand */
 }
 
 /*
-** XALLOC -- Allocate additional memory
-** ------------------------------------
+** XALLOC -- Allocate or reallocate additional memory
+** --------------------------------------------------
 **
 **	Returns:
-**		Pointer to allocated buffer space.
+**		Pointer to (re)allocated buffer space.
 **		Aborts if the requested memory could not be obtained.
 */
 
-char *
-xalloc(size)
-int size;				/* number of bytes to allocate */
+ptr_t *
+xalloc(buf, size)
+register ptr_t *buf;			/* current start of buffer space */
+siz_t size;				/* number of bytes to allocate */
 {
-	register char *buf;		/* pointer to new storage */
-	extern ptr_t *malloc();
+	if (buf == NULL)
+		buf = malloc(size);
+	else
+		buf = realloc(buf, size);
 
-	buf = (char *)malloc((siz_t)size);
 	if (buf == NULL)
 	{
-		(void) fprintf(stderr, "Out of memory\n");
+		error("Out of memory");
 		exit(EX_OSERR);
 	}
 
+	return(buf);
+}
+
+/*
+** ITOA -- Convert integer value to ascii string
+** ---------------------------------------------
+**
+**	Returns:
+**		Pointer to static storage containing string.
+*/
+
+char *
+itoa(n)
+int n;					/* value to convert */
+{
+	static char buf[30];		/* sufficient for 64-bit values */
+
+	(void) sprintf(buf, "%d", n);
 	return(buf);
 }

@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)smtp.c	e07@nikhef.nl (Eric Wassenaar) 950410";
+static char Version[] = "@(#)smtp.c	e07@nikhef.nl (Eric Wassenaar) 961013";
 #endif
 
 #include "vrfy.h"
@@ -37,10 +37,13 @@ extern int debug;
 char SmtpMsgBuffer[BUFSIZ];	/* buffer for outgoing commands */
 char SmtpReplyBuffer[BUFSIZ];	/* buffer for incoming replies */
 char SmtpErrorBuffer[BUFSIZ];	/* saved temporary failure error messages */
+
 FILE *SmtpOut = NULL;		/* smtp output channel */
 FILE *SmtpIn  = NULL;		/* smtp input channel */
+
 char *SmtpPhase = NULL;		/* connection state message */
 char *SmtpPrint = NULL;		/* phase to print and process replies */
+
 int SmtpState = SMTP_CLOSED;	/* current connection state */
 int SmtpErrno = 0;		/* saved errno from system calls */
 
@@ -73,7 +76,7 @@ char *host;				/* remote host to be contacted */
 
 	r = makeconnection(host, &SmtpOut, &SmtpIn);
 	SmtpErrno = errno;
-	if (r != EX_OK)
+	if (r != EX_SUCCESS)
 		return(r);
 
 	SmtpState = SMTP_OPEN;
@@ -87,8 +90,11 @@ char *host;				/* remote host to be contacted */
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
 
-	else if (REPLYTYPE(r) == 2)
-		return(EX_OK);
+	if (REPLYTYPE(r) == 2)
+		return(EX_SUCCESS);
+
+	if (REPLYTYPE(r) == 5)
+		return(EX_UNAVAILABLE);
 
 	return(EX_TEMPFAIL);
 }
@@ -97,15 +103,25 @@ char *host;				/* remote host to be contacted */
 ** SMTPHELO -- Issue the HELO command
 ** ----------------------------------
 **
+**	In ESMTP mode, first try the EHLO command.
+**
 **	Returns:
 **		Status code indicating success or failure.
 */
 
 int
-smtphelo(name)
+smtphelo(name, esmtp)
 char *name;				/* my own fully qualified hostname */
+bool esmtp;				/* try EHLO first, if set */
 {
 	register int r;
+
+	if (esmtp)
+	{
+		r = smtpehlo(name);
+		if (r != EX_UNAVAILABLE)
+			return(r);
+	}
 
 	smtpmessage("HELO %s", name);
 
@@ -118,10 +134,44 @@ char *name;				/* my own fully qualified hostname */
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
 
-	else if (REPLYTYPE(r) == 2)
-		return(EX_OK);
+	if (REPLYTYPE(r) == 2)
+		return(EX_SUCCESS);
 
-	else if (REPLYTYPE(r) == 5)
+	if (REPLYTYPE(r) == 5)
+		return(EX_UNAVAILABLE);
+
+	return(EX_TEMPFAIL);
+}
+
+/*
+** SMTPEHLO -- Issue the EHLO command
+** ----------------------------------
+**
+**	Returns:
+**		Status code indicating success or failure.
+*/
+
+int
+smtpehlo(name)
+char *name;				/* my own fully qualified hostname */
+{
+	register int r;
+
+	smtpmessage("EHLO %s", name);
+
+	SmtpPhase = "EHLO wait";
+	if (debug)
+		printf("smtp phase %s\n", SmtpPhase);
+
+	r = smtpreply();
+
+	if (r < 0 || REPLYTYPE(r) == 4)
+		return(EX_TEMPFAIL);
+
+	if (REPLYTYPE(r) == 2)
+		return(EX_SUCCESS);
+
+	if (REPLYTYPE(r) == 5)
 		return(EX_UNAVAILABLE);
 
 	return(EX_TEMPFAIL);
@@ -153,7 +203,7 @@ smtponex()
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
 
-	return(EX_OK);
+	return(EX_SUCCESS);
 }
 
 /*
@@ -186,7 +236,41 @@ char *onoff;				/* some hosts require parameter */
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
 
-	return(EX_OK);
+	return(EX_SUCCESS);
+}
+
+/*
+** SMTPETRN -- Issue the ETRN command
+** ----------------------------------
+**
+**	Returns:
+**		Status code indicating success or failure.
+*/
+
+int
+smtpetrn(name)
+char *name;				/* domain name for the ETRN command */
+{
+	register int r;
+
+	smtpmessage("ETRN %s", name);
+
+	SmtpPhase = "ETRN wait";
+	if (debug)
+		printf("smtp phase %s\n", SmtpPhase);
+
+	r = smtpreply();
+
+	if (r < 0 || REPLYTYPE(r) == 4)
+		return(EX_TEMPFAIL);
+
+	if (REPLYTYPE(r) == 2)
+		return(EX_SUCCESS);
+
+	if (REPLYTYPE(r) == 5)
+		return(EX_UNAVAILABLE);
+
+	return(EX_PROTOCOL);
 }
 
 /*
@@ -213,10 +297,10 @@ smtprset()
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
 
-	else if (REPLYTYPE(r) == 2)
-		return(EX_OK);
+	if (REPLYTYPE(r) == 2)
+		return(EX_SUCCESS);
 
-	else if (REPLYTYPE(r) == 5)
+	if (REPLYTYPE(r) == 5)
 		return(EX_UNAVAILABLE);
 
 	return(EX_PROTOCOL);
@@ -247,10 +331,16 @@ char *address;				/* sender address specification */
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
 
-	else if (r == 250)
-		return(EX_OK);
+	if (r == 250)
+		return(EX_SUCCESS);
 
-	else if (r == 552 || r == 554)
+	if (r == 552 || r == 554)
+		return(EX_UNAVAILABLE);
+
+	if (r == 550 || r == 551 || r == 553)
+		return(EX_UNAVAILABLE);
+
+	if (r == 500 || r == 501 || r == 503)
 		return(EX_UNAVAILABLE);
 
 	return(EX_PROTOCOL);
@@ -286,14 +376,17 @@ char *address;				/* recipient address specification */
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
 
-	else if (REPLYTYPE(r) == 2)
-		return(EX_OK);
+	if (r == 250 || r == 251)
+		return(EX_SUCCESS);
 
-	else if (r == 550 || r == 551 || r == 553)
+	if (r == 550 || r == 551 || r == 553)
 		return(EX_NOUSER);
 
-	else if (r == 552 || r == 554)
+	if (r == 552 || r == 554)
 		return(EX_UNAVAILABLE);
+
+	if (r == 500 || r == 501 || r == 503)
+		return (EX_UNAVAILABLE);
 
 	return(EX_PROTOCOL);
 }
@@ -328,19 +421,19 @@ char *address;				/* address to be verified */
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
 
-	else if (REPLYTYPE(r) == 2)
+	if (REPLYTYPE(r) == 2)
 		/* address was verified ok */
-		return(EX_OK);
+		return(EX_SUCCESS);
 
-	else if (r == 550 || r == 551 || r == 553)
+	if (r == 550 || r == 551 || r == 553)
 		/* local address but unknown or ambiguous user */
 		return(EX_NOUSER);
 
-	else if (r == 552 || r == 554)
+	if (r == 552 || r == 554)
 		/* address could not be verified */
 		return(EX_UNAVAILABLE);
 
-	else if (r == 500 || r == 501 || r == 502 || r == 504)
+	if (r == 500 || r == 501 || r == 502 || r == 504)
 		/* command not implemented */
 		return(EX_UNAVAILABLE);
 
@@ -377,19 +470,19 @@ char *address;				/* address to be verified */
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
 
-	else if (REPLYTYPE(r) == 2)
+	if (REPLYTYPE(r) == 2)
 		/* address was verified ok */
-		return(EX_OK);
+		return(EX_SUCCESS);
 
-	else if (r == 550 || r == 551 || r == 553)
+	if (r == 550 || r == 551 || r == 553)
 		/* local address but unknown or ambiguous user */
 		return(EX_NOUSER);
 
-	else if (r == 552 || r == 554)
+	if (r == 552 || r == 554)
 		/* address could not be verified */
 		return(EX_UNAVAILABLE);
 
-	else if (r == 500 || r == 501 || r == 502 || r == 504)
+	if (r == 500 || r == 501 || r == 502 || r == 504)
 		/* command not implemented */
 		return(EX_UNAVAILABLE);
 
@@ -414,7 +507,7 @@ smtpquit()
 	char *SavePhase = SmtpPhase;	/* save across recursive calls */
 
 	if (SmtpIn == NULL && SmtpOut == NULL)
-		return(EX_OK);
+		return(EX_SUCCESS);
 
 	if (SmtpState == SMTP_OPEN || SmtpState == SMTP_SSD)
 	{
@@ -430,7 +523,7 @@ smtpquit()
 		{
 			SmtpErrno = SaveErrno;
 			SmtpPhase = SavePhase;
-			return(EX_OK);
+			return(EX_SUCCESS);
 		}
 	}
 
@@ -444,7 +537,7 @@ smtpquit()
 
 	SmtpErrno = SaveErrno;
 	SmtpPhase = SavePhase;
-	return(EX_OK);
+	return(EX_SUCCESS);
 }
 
 /*
@@ -462,14 +555,14 @@ smtpquit()
 
 void
 /*VARARGS1*/
-smtpmessage(fmt, a, b, c)
+smtpmessage(fmt, a, b, c, d)
 char *fmt;				/* format of message */
-char *a, *b, *c;			/* optional arguments */
+char *a, *b, *c, *d;			/* optional arguments */
 {
 	if (SmtpOut != NULL)
 	{
 		/* construct the output message */
-		(void) sprintf(SmtpMsgBuffer, fmt, a, b, c);
+		(void) sprintf(SmtpMsgBuffer, fmt, a, b, c, d);
 
 		/* display the output in verbose mode */
 		if (verbose >= 2 || debug)
