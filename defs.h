@@ -1,7 +1,7 @@
 /*
 ** Declaration of functions.
 **
-**	@(#)defs.h              e07@nikhef.nl (Eric Wassenaar) 961113
+**	@(#)defs.h              e07@nikhef.nl (Eric Wassenaar) 971114
 */
 
 /*
@@ -32,6 +32,7 @@ int rcpthost		PROTO((char *, char *));
 int etrnhost		PROTO((char *, char *));
 int pinghost		PROTO((char *));
 int getmxhosts		PROTO((char *));
+char *setsender		PROTO((char *));
 
 	/* pars.c */
 
@@ -58,9 +59,11 @@ int smtpmail		PROTO((char *));
 int smtprcpt		PROTO((char *));
 int smtpexpn		PROTO((char *));
 int smtpvrfy		PROTO((char *));
+int smtpdata		PROTO((void));
+int smtpbody		PROTO((void));
 int smtpquit		PROTO((void));
 void smtpmessage	PROTO((char *, ...));
-int smtpreply		PROTO((void));
+int smtpreply		PROTO((char *, bool));
 
 	/* conn.c */
 
@@ -84,6 +87,7 @@ int getmxbyname		PROTO((char *));
 
 	/* util.c */
 
+void fixcrlf		PROTO((char *, bool));
 char *maxstr		PROTO((char *, int, bool));
 char *printable		PROTO((char *));
 ptr_t *xalloc		PROTO((ptr_t *, siz_t));
@@ -95,8 +99,14 @@ char *itoa		PROTO((int));
 */
 	/* extern */
 
+#if !defined(NO_INET_H)
+#include <arpa/inet.h>
+#else
+
 ipaddr_t inet_addr	PROTO((CONST char *));
 char *inet_ntoa		PROTO((struct in_addr));
+
+#endif
 
 	/* avoid <strings.h> */
 
@@ -137,4 +147,8 @@ void exit		PROTO((int));
 
 #if defined(__STDC__) && !defined(apollo)
 #include <unistd.h>
+#else
+
+unsigned int alarm	PROTO((unsigned int));
+
 #endif

@@ -19,10 +19,49 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)util.c	e07@nikhef.nl (Eric Wassenaar) 961006";
+static char Version[] = "@(#)util.c	e07@nikhef.nl (Eric Wassenaar) 971113";
 #endif
 
 #include "vrfy.h"
+
+/*
+** FIXCRLF -- Fix trailing <CR><LF> combination in line
+** ----------------------------------------------------
+**
+**	Unconditionally strip a trailing <LF> from an input line,
+**	and optionally strip a preceding <CR>.
+**	Both characters must be removed during SMTP input, since
+**	they are part of the protocol.
+**	But when reading local input, we must just remove the
+**	trailing <LF>, being the UNIX canonical <NL> character,
+**	and preserve a possible <CR>. This guarantees transparent
+**	transmission of files ending in <CR><LF>.
+**
+**	Returns:
+**		None.
+**
+**	Side effects:
+**		The line is changed in place.
+*/
+
+void
+fixcrlf(line, stripcr)
+char *line;				/* the input line to fix */
+bool stripcr;				/* also strip CR, if set */
+{
+	register char *p;
+
+	p = index(line, '\n');
+	if (p != NULL)
+	{
+		/* move back to preceding CR if necessary */
+		if (stripcr && ((p > line) && (p[-1] == '\r')))
+			p--;
+
+		/* properly terminate the line */
+		*p = '\0';
+	}
+}
 
 /*
 ** MAXSTR -- Ensure string does not exceed maximum size

@@ -1,4 +1,4 @@
-#	@(#)Makefile            e07@nikhef.nl (Eric Wassenaar) 970826
+#	@(#)Makefile            e07@nikhef.nl (Eric Wassenaar) 971007
 
 # ----------------------------------------------------------------------
 # Adapt the installation directories to your local standards.
@@ -41,6 +41,10 @@ SYSDEFS =
 # Compiled-in defaults can be overruled by environment variables.
 # See also the header file conf.h for further details.
 # ----------------------------------------------------------------------
+
+#if defined(BIND_49) && __res_state is still shipped as struct state
+CONFIGDEFS = -DOLD_RES_STATE
+#endif
 
 # Define LOCALHOST if "localhost" is not running the sendmail daemon.
 CONFIGDEFS = -DLOCALHOST=\"mailhost\"
