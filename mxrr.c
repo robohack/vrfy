@@ -33,7 +33,6 @@ extern int errno;
 extern int h_errno;
 extern int verbose;
 extern int debug;
-extern struct state _res;
 
 #if PACKETSZ > 1024
 #define	MAXPACKET PACKETSZ

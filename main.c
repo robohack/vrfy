@@ -242,7 +242,6 @@ typedef int	bool;
 extern int ConnTimeout;		/* timeout in secs for connect() */
 extern int ReadTimeout;		/* timeout in secs for sfgets() */
 extern char *MyHostName;	/* my own fully qualified host name */
-extern struct state _res;	/* resolver parameters */
 
 char *HostSpec = NULL;		/* explicit host to be queried */
 char *AddrSpec = NULL;		/* address being processed */
