@@ -1,4 +1,4 @@
-	@(#)RELEASE_NOTES       e07@nikhef.nl (Eric Wassenaar) 970828
+	@(#)RELEASE_NOTES       e07@nikhef.nl (Eric Wassenaar) 980626
 
 	URL	ftp://ftp.nikhef.nl/pub/network/vrfy.tar.Z
 
@@ -9,6 +9,79 @@ WISHLIST	Wishes expressed by various people
 # ----------------------------------------------------------------------
 # Description of changes per release
 # ----------------------------------------------------------------------
+
+980626
+	Recognize new SMTP reply codes.
+		Code 521 is defined per RFC 1846 and indicates that
+		an SMTP server does not (never) accept incoming mail.
+		Code 571 is sometimes used to reject mail from banned
+		domains. Strictly speaking the code is not defined
+		and is probably mistaken for the DSN "5.7.1" status.
+		It is intercepted to avoid "Remote protocol" errors.
+	Minor portability changes.
+		Move <netdb.h> to a more appropriate place to avoid
+		BSD mode compile errors on the solaris 2.5 platform.
+		Don't declare sys_errlist on some more platforms.
+
+971114
+	Add possibility to specify envelope sender.
+		A new command line option -S specifies an explicit
+		envelope sender address for use in the SMTP MAIL FROM
+		transaction, to overrule the default empty address <>.
+		The address must conform to elementary syntax rules.
+		The -S option enforces the -n option, which causes the
+		HELO/MAIL/RCPT sequence to be carried out instead of
+		the regular VRFY or EXPN. Useful for testing purposes.
+	Check for arbitrary relay by remote server.
+		The facilities are available to check whether a remote
+		SMTP server is willing to relay mail from an arbitrary
+		sender to an arbitrary recipient.
+		The astute reader may have figured out how to do this.
+	Allow the use of vrfy as a filter.
+		If the -f option is given without an explicit filename,
+		standard input is read to fetch the target addresses.
+		From Hallvard Furuseth <h.b.furuseth@usit.uio.no>
+	Restructure handling of smtp replies.
+		Simplify code with respect to smtp state messages.
+		Simplify implementation on whether to process replies.
+		Distinguish between first reply line and continuations.
+		Take proper care of I/O output errors.
+	Minor portability changes.
+		Identify SVR4 platforms depending on cpp symbols,
+		which are different for various compilers.
+	Minor portability changes.
+		Move <netdb.h> to a more appropriate place to avoid
+		BSD mode compile errors on the solaris 2.5 platform.
+	Miscellaneous changes.
+		Various esthetical code changes.
+
+971007
+	Reconsider heuristic to determine BIND release.
+		Some vendors still ship new BIND 4.9 releases that have
+		the old struct ``state'' instead of ``__res_state''.
+		This is now controlled via Makefile CONFIGDEFS.
+	There are no functional changes in this release.
+
+970930
+	Minor portability fixes.
+		On some platforms sys_errlist is a (const char *).
+		Use explicit casts in assignments and function returns
+		to avoid compiler warnings.
+	Miscellaneous changes.
+		Minor esthetical code changes.
+
+970922
+	Portability fix.
+		On some platforms, sys_errlist has already been defined
+		in <errno.h> and must not be declared again in stat.c.
+		Reported for FreeBSD by Bruno Rohee <brohee@iway.fr>
+	Backward compatibility fix.
+		Some vendors still ship old BIND 4.9 releases that have
+		the old struct ``state'' instead of ``__res_state''.
+		From Jan Hendrik Peters <petersjh@mail.desy.de> for AIX.
+	Minor portability fixes.
+		Properly identify certain platforms in port.h to avoid
+		compiler warnings.
 
 970828
 	Linux portability fixes.

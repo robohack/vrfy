@@ -1,8 +1,12 @@
 /*
 ** Various portability definitions.
 **
-**	@(#)port.h              e07@nikhef.nl (Eric Wassenaar) 961013
+**	@(#)port.h              e07@nikhef.nl (Eric Wassenaar) 980530
 */
+
+#if defined(__SVR4) || defined(__svr4__)
+#define SVR4
+#endif
 
 #if defined(SYSV) || defined(SVR4)
 #define SYSV_MALLOC
@@ -15,6 +19,34 @@
 #define SYSV_MALLOC
 #define SYSV_SETVBUF
 #endif
+
+#if defined(sgi)
+#define SYSV_MALLOC
+#endif
+
+#if defined(linux)
+#define SYSV_MALLOC
+#endif
+
+#if defined(NeXT)
+#define SYSV_MALLOC
+#endif
+
+/*
+** Special definitions for certain platforms.
+*/
+
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#define ERRLIST_DEFINED		/* don't declare sys_errlist */
+#endif
+
+#if defined(linux) || defined(__bsdi__)
+#define ERRLIST_DEFINED		/* don't declare sys_errlist */
+#endif
+
+/*
+** Distinguish between various BIND releases.
+*/
 
 #if defined(RES_PRF_STATS)
 #define BIND_49
@@ -46,10 +78,14 @@
 ** The following should depend on existing definitions.
 */
 
-#if defined(BIND_49)
-typedef struct __res_state	res_state_t;
-#else
+typedef int	bool;		/* boolean type */
+#define TRUE	1
+#define FALSE	0
+
+#if defined(BIND_48) || defined(OLD_RES_STATE)
 typedef struct state		res_state_t;
+#else
+typedef struct __res_state	res_state_t;
 #endif
 
 #if defined(BIND_493)
@@ -118,6 +154,12 @@ typedef int	free_t;
 */
 
 #define PROTO(TYPES)	()
+
+#if !defined(__STDC__) || defined(apollo)
+#define Proto(TYPES)	()
+#else
+#define Proto(TYPES)	TYPES
+#endif
 
 #if !defined(__STDC__) || defined(apollo)
 #define const

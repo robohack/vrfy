@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)smtp.c	e07@nikhef.nl (Eric Wassenaar) 961013";
+static char Version[] = "@(#)smtp.c	e07@nikhef.nl (Eric Wassenaar) 980626";
 #endif
 
 #include "vrfy.h"
@@ -35,17 +35,18 @@ extern int debug;
 #define SMTP_SSD	2	/* service shutting down */
 
 char SmtpMsgBuffer[BUFSIZ];	/* buffer for outgoing commands */
-char SmtpReplyBuffer[BUFSIZ];	/* buffer for incoming replies */
+char SmtpReplyBuffer[BUFSIZ];	/* buffer for incoming replies (first line) */
+char SmtpContBuffer[BUFSIZ];	/* buffer for incoming replies (continuation) */
 char SmtpErrorBuffer[BUFSIZ];	/* saved temporary failure error messages */
 
 FILE *SmtpOut = NULL;		/* smtp output channel */
 FILE *SmtpIn  = NULL;		/* smtp input channel */
 
 char *SmtpPhase = NULL;		/* connection state message */
-char *SmtpPrint = NULL;		/* phase to print and process replies */
-
 int SmtpState = SMTP_CLOSED;	/* current connection state */
 int SmtpErrno = 0;		/* saved errno from system calls */
+
+char *SmtpCrLf = "\r\n";	/* smtp end-of-line terminator */
 
 /*
 ** SMTPINIT -- Initiate SMTP connection with remote host
@@ -70,7 +71,7 @@ char *host;				/* remote host to be contacted */
 	SmtpErrorBuffer[0] = '\0';
 	SmtpErrno = 0;
 
-	SmtpPhase = "user open";
+	SmtpPhase = "connect";
 	if (debug)
 		printf("smtp phase %s\n", SmtpPhase);
 
@@ -81,11 +82,7 @@ char *host;				/* remote host to be contacted */
 
 	SmtpState = SMTP_OPEN;
 
-	SmtpPhase = "greeting wait";
-	if (debug)
-		printf("smtp phase %s\n", SmtpPhase);
-
-	r = smtpreply();
+	r = smtpreply("greeting wait", FALSE);
 
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
@@ -125,11 +122,7 @@ bool esmtp;				/* try EHLO first, if set */
 
 	smtpmessage("HELO %s", name);
 
-	SmtpPhase = "HELO wait";
-	if (debug)
-		printf("smtp phase %s\n", SmtpPhase);
-
-	r = smtpreply();
+	r = smtpreply("HELO wait", FALSE);
 
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
@@ -159,11 +152,7 @@ char *name;				/* my own fully qualified hostname */
 
 	smtpmessage("EHLO %s", name);
 
-	SmtpPhase = "EHLO wait";
-	if (debug)
-		printf("smtp phase %s\n", SmtpPhase);
-
-	r = smtpreply();
+	r = smtpreply("EHLO wait", FALSE);
 
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
@@ -194,11 +183,7 @@ smtponex()
 
 	smtpmessage("ONEX");
 
-	SmtpPhase = "ONEX wait";
-	if (debug)
-		printf("smtp phase %s\n", SmtpPhase);
-
-	r = smtpreply();
+	r = smtpreply("ONEX wait", FALSE);
 
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
@@ -227,11 +212,7 @@ char *onoff;				/* some hosts require parameter */
 
 	smtpmessage("VERB %s", onoff);
 
-	SmtpPhase = "VERB wait";
-	if (debug)
-		printf("smtp phase %s\n", SmtpPhase);
-
-	r = smtpreply();
+	r = smtpreply("VERB wait", FALSE);
 
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
@@ -255,11 +236,7 @@ char *name;				/* domain name for the ETRN command */
 
 	smtpmessage("ETRN %s", name);
 
-	SmtpPhase = "ETRN wait";
-	if (debug)
-		printf("smtp phase %s\n", SmtpPhase);
-
-	r = smtpreply();
+	r = smtpreply("ETRN wait", FALSE);
 
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
@@ -288,11 +265,7 @@ smtprset()
 
 	smtpmessage("RSET");
 
-	SmtpPhase = "RSET wait";
-	if (debug)
-		printf("smtp phase %s\n", SmtpPhase);
-
-	r = smtpreply();
+	r = smtpreply("RSET wait", FALSE);
 
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
@@ -322,11 +295,7 @@ char *address;				/* sender address specification */
 
 	smtpmessage("MAIL From:<%s>", address);
 
-	SmtpPhase = "MAIL wait";
-	if (debug)
-		printf("smtp phase %s\n", SmtpPhase);
-
-	r = smtpreply();
+	r = smtpreply("MAIL wait", FALSE);
 
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
@@ -343,6 +312,12 @@ char *address;				/* sender address specification */
 	if (r == 500 || r == 501 || r == 503)
 		return(EX_UNAVAILABLE);
 
+	if (r == 521)
+		return(EX_UNAVAILABLE);
+
+	if (r == 571)
+		return(EX_UNAVAILABLE);
+
 	return(EX_PROTOCOL);
 }
 
@@ -352,9 +327,6 @@ char *address;				/* sender address specification */
 **
 **	Returns:
 **		Status code indicating success or failure.
-**
-**	Side effects:
-**		Sets SmtpPrint flag to process responses.
 */
 
 int
@@ -365,13 +337,7 @@ char *address;				/* recipient address specification */
 
 	smtpmessage("RCPT To:<%s>", address);
 
-	SmtpPhase = "RCPT wait";
-	if (debug)
-		printf("smtp phase %s\n", SmtpPhase);
-
-	SmtpPrint = SmtpPhase;
-	r = smtpreply();
-	SmtpPrint = NULL;
+	r = smtpreply("RCPT wait", TRUE);
 
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
@@ -386,7 +352,13 @@ char *address;				/* recipient address specification */
 		return(EX_UNAVAILABLE);
 
 	if (r == 500 || r == 501 || r == 503)
-		return (EX_UNAVAILABLE);
+		return(EX_UNAVAILABLE);
+
+	if (r == 521)
+		return(EX_UNAVAILABLE);
+
+	if (r == 571)
+		return(EX_UNAVAILABLE);
 
 	return(EX_PROTOCOL);
 }
@@ -397,9 +369,6 @@ char *address;				/* recipient address specification */
 **
 **	Returns:
 **		Status code indicating success or failure.
-**
-**	Side effects:
-**		Sets SmtpPrint flag to process responses.
 */
 
 int
@@ -410,13 +379,7 @@ char *address;				/* address to be verified */
 
 	smtpmessage("EXPN %s", address);
 
-	SmtpPhase = "EXPN wait";
-	if (debug)
-		printf("smtp phase %s\n", SmtpPhase);
-
-	SmtpPrint = SmtpPhase;
-	r = smtpreply();
-	SmtpPrint = NULL;
+	r = smtpreply("EXPN wait", TRUE);
 
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
@@ -435,6 +398,10 @@ char *address;				/* address to be verified */
 
 	if (r == 500 || r == 501 || r == 502 || r == 504)
 		/* command not implemented */
+		return(EX_UNAVAILABLE);
+
+	if (r == 521)
+		/* not a real mail server */
 		return(EX_UNAVAILABLE);
 
 	return(EX_PROTOCOL);
@@ -446,9 +413,6 @@ char *address;				/* address to be verified */
 **
 **	Returns:
 **		Status code indicating success or failure.
-**
-**	Side effects:
-**		Sets SmtpPrint flag to process responses.
 */
 
 int
@@ -459,13 +423,7 @@ char *address;				/* address to be verified */
 
 	smtpmessage("VRFY %s", address);
 
-	SmtpPhase = "VRFY wait";
-	if (debug)
-		printf("smtp phase %s\n", SmtpPhase);
-
-	SmtpPrint = SmtpPhase;
-	r = smtpreply();
-	SmtpPrint = NULL;
+	r = smtpreply("VRFY wait", TRUE);
 
 	if (r < 0 || REPLYTYPE(r) == 4)
 		return(EX_TEMPFAIL);
@@ -486,7 +444,91 @@ char *address;				/* address to be verified */
 		/* command not implemented */
 		return(EX_UNAVAILABLE);
 
+	if (r == 521)
+		/* not a real mail server */
+		return(EX_UNAVAILABLE);
+
 	return(EX_PROTOCOL);
+}
+
+/*
+** SMTPDATA -- Issue the DATA command
+** ----------------------------------
+**
+**	Returns:
+**		Status code indicating success or failure.
+*/
+
+int
+smtpdata()
+{
+	register int r;
+
+/*
+ * Issue the DATA command, and wait for the go-ahead.
+ */
+	smtpmessage("DATA");
+
+	r = smtpreply("DATA wait", FALSE);
+
+	if (r < 0 || REPLYTYPE(r) == 4)
+		return(EX_TEMPFAIL);
+
+	if (r == 552 || r == 554)
+		return(EX_UNAVAILABLE);
+
+	if (r == 500 || r == 501 || r == 503)
+		return(EX_UNAVAILABLE);
+
+	if (r == 521)
+		return(EX_UNAVAILABLE);
+
+	if (r != 354)
+		return(EX_PROTOCOL);
+
+/*
+ * Transmit the message body. This fails only on I/O errors.
+ */
+	if (smtpbody() != EX_SUCCESS)
+		return(EX_TEMPFAIL);
+
+/*
+ * Terminate the message, and wait for acceptance.
+ */
+	smtpmessage(".");
+
+	r = smtpreply("accept wait", FALSE);
+
+	if (r < 0 || REPLYTYPE(r) == 4)
+		return(EX_TEMPFAIL);
+
+	if (r == 552 || r == 554)
+		return(EX_UNAVAILABLE);
+
+	if (r == 500 || r == 501 || r == 503)
+		return(EX_UNAVAILABLE);
+
+	if (r == 521)
+		return(EX_UNAVAILABLE);
+
+	if (r != 250)
+		return(EX_PROTOCOL);
+
+	return(EX_SUCCESS);
+}
+
+/*
+** SMTPBODY -- Transmit the message itself
+** ---------------------------------------
+**
+**	Returns:
+**		Status code indicating success or failure.
+*/
+
+int
+smtpbody()
+{
+	return(EX_SUCCESS);
 }
 
 /*
@@ -513,11 +555,7 @@ smtpquit()
 	{
 		smtpmessage("QUIT");
 
-		SmtpPhase = "QUIT wait";
-		if (debug)
-			printf("smtp phase %s\n", SmtpPhase);
-
-		(void) smtpreply();
+		(void) smtpreply("QUIT wait", FALSE);
 
 		if (SmtpState == SMTP_CLOSED)
 		{
@@ -569,7 +607,7 @@ char *a, *b, *c, *d;			/* optional arguments */
 			printf(">>> %s\n", SmtpMsgBuffer);
 
 		/* send the message over the channel */
-		(void) fprintf(SmtpOut, "%s\r\n", SmtpMsgBuffer);
+		(void) fprintf(SmtpOut, "%s%s", SmtpMsgBuffer, SmtpCrLf);
 	}
 }
 
@@ -579,7 +617,7 @@ char *a, *b, *c, *d;			/* optional arguments */
 **
 **	Returns:
 **		The SMTP reply code if the reply has been received.
-**		-1 on read errors or timeout.
+**		-1 on I/O errors or timeout.
 **
 **	Outputs:
 **		Saves temporary failures in SmtpErrorBuffer.
@@ -590,22 +628,59 @@ char *a, *b, *c, *d;			/* optional arguments */
 */
 
 int
-smtpreply()
+smtpreply(phase, check)
+char *phase;				/* new connection state message */
+bool check;				/* process response, if set */
 {
 	register int r;
 	register char *p;
+	char *buf;			/* current smtp reply buffer */
 
+/*
+ * Define the new SMTP connection state message.
+ */
+	SmtpPhase = phase;
+	if (debug)
+		printf("smtp phase %s\n", SmtpPhase);
+
+/*
+ * Force the previous SMTP message to be written out.
+ * Make sure the connection is still open, and check for errors.
+ */
 	if (SmtpOut != NULL)
-		(void) fflush(SmtpOut);
+	{
+		if (fflush(SmtpOut) || ferror(SmtpOut))
+		{
+			if (errno == 0)
+				errno = EIO;
+			SmtpErrno = errno;
 
-	for (;;)
+			SmtpState = SMTP_CLOSED;
+			(void) smtpquit();
+			return(-1);
+		}
+	}
+
+/*
+ * Read the response to the SMTP message.
+ * Only the first line is saved in the main reply buffer.
+ */
+	for (buf = SmtpReplyBuffer;; buf = SmtpContBuffer)
 	{
 		/* if we are in the process of closing just give the code */
 		if (SmtpState == SMTP_CLOSED || SmtpIn == NULL)
+		{
+			/* make sure we have a meaningful error message */
+			if (SmtpErrorBuffer[0] == '\0')
+				(void) strcpy(SmtpErrorBuffer, "Connection closed");
+
+			/* return a valid reply code */
+			SmtpErrno = 0;
 			return(SMTPCLOSING);
+		}
 
 		/* get the line from the other side */
-		p = sfgets(SmtpReplyBuffer, sizeof(SmtpReplyBuffer), SmtpIn);
+		p = sfgets(buf, BUFSIZ, SmtpIn);
 		if (p == NULL)
 		{
 			/* if the remote end closed early, fake an error */
@@ -619,35 +694,29 @@ smtpreply()
 		}
 
 		/* remove cr/lf combination */
-		p = index(SmtpReplyBuffer, '\n');
-		if (p != NULL)
-		{
-			if (p > SmtpReplyBuffer && p[-1] == '\r')
-				p--;
-			*p = '\0';
-		}
+		fixcrlf(buf, TRUE);
 
 		/* display the input in verbose mode */
 		if (verbose >= 2 || debug)
-			printf("<<< %s\n", SmtpReplyBuffer);
+			printf("<<< %s\n", buf);
 
 		/* if continuation is required, we can go on */
-		if (!is_digit(SmtpReplyBuffer[0]))
+		if (!is_digit(buf[0]))
 			continue;
 
 		/* decode the reply code */
-		r = atoi(SmtpReplyBuffer);
+		r = atoi(buf);
 
 		/* extra semantics: 0xx codes are "informational" */
 		if (r < 100)
 			continue;
 
 		/* process response if requested */
-		if (SmtpPrint != NULL && strcmp(SmtpPhase, SmtpPrint) == 0)
-			response(SmtpReplyBuffer);
+		if (check)
+			response(buf);
 
 		/* if continuation is required, we can go on */
-		if (SmtpReplyBuffer[3] == '-')
+		if (buf[3] == '-')
 			continue;
 
 		/* save temporary failure messages for posterity */

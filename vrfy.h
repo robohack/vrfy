@@ -1,7 +1,7 @@
 /*
-** Master include file.
+** Master include file of the vrfy utility.
 **
-**	@(#)vrfy.h              e07@nikhef.nl (Eric Wassenaar) 961006
+**	@(#)vrfy.h              e07@nikhef.nl (Eric Wassenaar) 971222
 */
 
 #if defined(apollo) && defined(lint)
@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <errno.h>
-#include <netdb.h>
 #include <signal.h>
 #include <setjmp.h>
 
@@ -20,6 +19,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include <netdb.h>
 #undef NOERROR			/* in <sys/streams.h> on solaris 2.x */
 #include <arpa/nameser.h>
 #include <resolv.h>
@@ -27,10 +27,6 @@
 #include "port.h"		/* various portability definitions */
 #include "conf.h"		/* various configuration definitions */
 #include "exit.h"		/* exit codes come from <sysexits.h> */
-
-typedef int	bool;		/* boolean type */
-#define TRUE	1
-#define FALSE	0
 
 #define NOT_DOTTED_QUAD	((ipaddr_t)-1)
 
@@ -41,7 +37,7 @@ typedef int	bool;		/* boolean type */
 #endif
 
 EXTERN int errno;
-EXTERN int h_errno;		/* defined in gethostnamadr.c */
+EXTERN int h_errno;		/* defined in the resolver library */
 EXTERN res_state_t _res;	/* defined in res_init.c */
 
 #include "defs.h"		/* declarations of functions */

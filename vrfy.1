@@ -1,7 +1,7 @@
 .\"
-.\"	@(#)vrfy.1              e07@nikhef.nl (Eric Wassenaar) 961006
+.\"	@(#)vrfy.1              e07@nikhef.nl (Eric Wassenaar) 971114
 .\"
-.TH vrfy 1 "961006"
+.TH vrfy 1 "971114"
 .SH NAME
 vrfy \- Verify electronic mail addresses
 .SH SYNTAX
@@ -15,7 +15,7 @@ vrfy \- Verify electronic mail addresses
 [\fIoptions\fP]
 [\fB\-v\fP]
 \fB\-f\fP
-\fIfile\fP
+[\fIfile\fP]
 [\fIhost\fP]
 .br
 .B vrfy
@@ -62,9 +62,11 @@ resolves to any valid recipients.
 Some flags put the program in a special operation mode.
 .SS "FILE MODE"
 If the \fB\-f\fP option is specified, the program enters a special
-file mode. The required parameter is the name of a \fIfile\fP
+file mode. The (optional) parameter is the name of a \fIfile\fP
 containing electronic mail addresses, such as used for mailing lists.
 Verification of all addresses present in the file is attempted.
+If no filename is specified, vrfy acts as a filter and the addresses
+to be verified are read from standard input.
 .SS "PING MODE"
 If the \fB\-p\fP option is specified, the program enters a special
 ping mode. The required parameter is an electronic mail \fIdomain\fP
@@ -91,8 +93,8 @@ unless this was the machine we just queried, or it is not an
 internet domain host.
 .sp
 The option \fB\-R\fP is equivalent to ``\fB\-L\fP\ \fI17\fP''.
-This is the maximum hop count used during actual mail relaying.
-This option also implies ``\fB\-s\fP''.
+This is the maximum hop count normally used during actual mail
+relaying. This option also implies ``\fB\-s\fP''.
 .SH OPTIONS
 .TP 8
 .B \-v
@@ -154,6 +156,9 @@ This option causes an SMTP HELO command to be issued to the
 contacted server before subsequent commands are attempted.
 Servers can be configured to refuse commands unless a HELO
 command is given first.
+The HELO is not issued by default, since old versions of sendmail
+refuse SMTP connections originating on the same machine (i.e. if
+the domain name in the HELO command is its own name).
 .TP
 .B \-H
 Similar to the \fB\-h\fP option, but now the ESMTP EHLO command
@@ -164,9 +169,15 @@ the SMTP HELO command is tried next.
 Many non-sendmail hosts do not, or incorrectly or incompletely,
 implement the VRFY command. Other systems have VRFY or EXPN
 disabled for privacy reasons. This option uses an alternative
-protocol suite with the regular MAIL, RCPT and RSET commands.
+protocol suite with the regular HELO, MAIL, RCPT and RSET commands.
 This gives only a global indication whether the recipient is
 valid. Recursive mode is not possible, and will be disabled.
+.TP
+.BI \-S " sender"
+Defines an explicit envelope sender address to be used in the MAIL
+command during the alternative protocol suite, to overrule the
+default empty sender address ``<>''.
+This option implies ``\fB\-n\fP''.
 .TP
 .BI \-c " secs"
 Sets a connect timeout value to override the default timeout of 6

@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)vrfy.c	e07@nikhef.nl (Eric Wassenaar) 970828";
+static char Version[] = "@(#)vrfy.c	e07@nikhef.nl (Eric Wassenaar) 971113";
 #endif
 
 /*
@@ -174,11 +174,11 @@ static char Version[] = "@(#)vrfy.c	e07@nikhef.nl (Eric Wassenaar) 970828";
 static char Usage[] =
 "\
 Usage: vrfy [options] [-v] address [host]\n\
-File:  vrfy [options] [-v] -f file [host]\n\
+File:  vrfy [options] [-v] -f [file] [host]\n\
 Ping:  vrfy [options] [-v] -p domain\n\
 Etrn:  vrfy [options] [-v] -T domain [name]\n\
-Options: [-a] [-d] [-l] [-c secs] [-t secs]\n\
-Special: [-L level] [-R] [-s] [-n] [-e] [-h] [-H]\
+Options: [-a] [-d] [-l] [-s] [-c secs] [-t secs]\n\
+Special: [-L level] [-R] [-S sender] [-n] [-e] [-h] [-H]\
 ";
 
 
@@ -187,6 +187,7 @@ Special: [-L level] [-R] [-s] [-n] [-e] [-h] [-H]\
 char **optargv = NULL;		/* argument list including default options */
 int optargc = 0;		/* number of arguments in new argument list */
 
+char *FromAddr = NULL;		/* -S  explicit envelope sender address */
 char *HostSpec = NULL;		/* explicit host to be queried */
 char *AddrSpec = NULL;		/* address being processed */
 char *FileName = NULL;		/* name of file being processed */
@@ -203,12 +204,13 @@ bool vrfyall = FALSE;		/* -a  query all mx hosts found, if set */
 bool localerr = FALSE;		/* -l  handle errors locally, if set */
 bool etrnmode = FALSE;		/* -T  etrn mx hosts, if set */
 bool pingmode = FALSE;		/* -p  ping mx hosts, if set */
-bool filemode = FALSE;		/* -f  verify file, if set */
+bool filemode = FALSE;		/* -f  verify file or stdin, if set */
 bool helomode = FALSE;		/* -h  issue HELO command, if set */
 bool ehlomode = FALSE;		/* -H  issue EHLO/HELO command, if set */
 bool onexmode = FALSE;		/* -o  issue ONEX command, if set */
 bool expnmode = FALSE;		/* -e  use EXPN instead of VRFY, if set */
 bool rcptmode = FALSE;		/* -r  use RCPT instead of VRFY, if set */
+bool datamode = FALSE;		/* -M  add DATA after MAIL/RCPT, if set */
 
 char *ReplyList[MAXREPLY];	/* saved address expansions */
 int ReplyCount = 0;		/* number of valid replies */
@@ -340,17 +342,27 @@ char *argv[];
 			expnmode = TRUE;
 	    		break;
 
+	    	    case 'S':		/* explicit envelope sender address */
+			if (argv[2] == NULL || argv[2][0] == '-')
+				fatal("Missing sender address");
+			FromAddr = setsender(argv[2]);
+			if (FromAddr == NULL)
+				fatal("Invalid sender address");
+			argc--, argv++;
+	    		/*FALLTHROUGH*/
+
+	    	    case 'n':		/* use alternative protocol suite */
+			ehlomode = TRUE;
+			helomode = TRUE;
+	    		/*FALLTHROUGH*/
+
 	    	    case 'r':		/* use MAIL/RCPT instead of VRFY */
 			rcptmode = TRUE;
 			recursive = 0;
 	    		break;
 
-	    	    case 'n':		/* use alternative protocol suite */
-			ehlomode = TRUE;
-			helomode = TRUE;
-			onexmode = FALSE;
-			rcptmode = TRUE;
-			recursive = 0;
+	    	    case 'M':		/* add DATA after MAIL/RCPT */
+			datamode = TRUE;
 	    		break;
 
 	    	    case 'f':		/* verify file */
@@ -416,7 +428,7 @@ char *argv[];
  * Scan remaining command line arguments.
  */
 	/* must have at least one argument */
-	if (argc < 2 || argv[1] == NULL)
+	if (!filemode && (argc < 2 || argv[1] == NULL))
 		fatal(Usage);
 
 	/* set optional explicit host to be queried */
@@ -430,6 +442,10 @@ char *argv[];
 /*
  * Miscellaneous initialization.
  */
+	/* reset control variables that may have been used */
+	AddrSpec = NULL;
+	SuprErrs = FALSE;
+
 	/* get own host name before turning on debugging */
 	if (helomode || etrnmode || pingmode)
 		setmyhostname();
@@ -448,17 +464,17 @@ char *argv[];
 /*
  * All set. Execute the required function.
  */
-	if (etrnmode)
-		etrn(argv[1], option);	/* etrn the given domain */
+	if (etrnmode) /* etrn the given domain */
+		etrn(argv[1], option);
 
-	else if (pingmode)
-		ping(argv[1]);		/* ping the given domain */
+	else if (pingmode) /* ping the given domain */
+		ping(argv[1]);
 
-	else if (filemode)
-		file(argv[1]);		/* verify the given file */
+	else if (filemode) /* verify the given file */
+		file(argv[1]);
 
-	else
-		list(argv[1]);		/* verify the address list */
+	else /* verify the address list */
+		list(argv[1]);
 
 	return(ExitStat);
 	/*NOTREACHED*/
@@ -496,7 +512,7 @@ char *argv[];				/* original command line arguments */
 /*
  * Construct argument list from option string.
  */
-	for (q = "", p = newstr(option); *p != '\0'; p = q)
+	for (q = newstr(option), p = q; *p != '\0'; p = q)
 	{
 		while (is_space(*p))
 			p++;
@@ -907,9 +923,19 @@ char *filename;				/* name of file to be verified */
 	register char *p;
 
 /*
+ * Allow the use of vrfy -f as a filter.
+ */
+	if (filename == NULL || *filename == '\0')
+	{
+		filename = "stdin";
+		fp = stdin;
+	}
+	else
+		fp = fopen(filename, "r");
+
+/*
  * Terminate if the file could not be opened.
  */
-	fp = fopen(filename, "r");
 	if (fp == NULL)
 	{
 		perror(filename);
@@ -960,7 +986,8 @@ char *filename;				/* name of file to be verified */
 		list(addrlist);
 	}
 
-	(void) fclose(fp);
+	if (fp != stdin)
+		(void) fclose(fp);
 	FileName = NULL;
 }
 
@@ -1333,7 +1360,6 @@ char *host;				/* remote host to be queried */
  */
 	if (verbose || debug)
 		printf("vrfy '%s' at '%s'\n", address, host);
-
 	if (debug >= 3)
 		return(EX_SUCCESS);
 
@@ -1381,7 +1407,6 @@ char *host;				/* remote host to be queried */
  */
 	if (verbose || debug)
 		printf("expn '%s' at '%s'\n", address, host);
-
 	if (debug >= 3)
 		return(EX_SUCCESS);
 
@@ -1429,15 +1454,11 @@ char *host;				/* remote host to be queried */
  */
 	if (verbose || debug)
 		printf("rcpt '%s' at '%s'\n", address, host);
-
 	if (debug >= 3)
 		return(EX_SUCCESS);
 
 /*
- * Carry out the smtp protocol suite using RCPT.
- * Note that smtponex returns ok if ONEX is not supported remotely.
- * Note that smtpverb returns ok if VERB is not supported remotely.
- * Some hosts require a parameter for the VERB command.
+ * Carry out the smtp protocol suite using MAIL/RCPT.
  * Only malconfigured hosts do not accept an empty sender address.
  */
 	reply = smtpinit(host);
@@ -1452,12 +1473,16 @@ char *host;				/* remote host to be queried */
 		reply = smtpverb("on");
 
 	if (reply == EX_SUCCESS)
-		reply = smtpmail("");
+		reply = smtpmail((FromAddr == NULL) ? "" : FromAddr);
 
 	if (reply == EX_SUCCESS)
 		reply = smtprcpt(address);
 
-	(void) smtprset();
+	if (reply == EX_SUCCESS && datamode)
+		(void) smtpdata();
+	else
+		(void) smtprset();
+
 	(void) smtpquit();
 	return(reply);
 }
@@ -1482,7 +1507,6 @@ char *host;				/* remote host to be queried */
  */
 	if (verbose || debug)
 		printf("etrn '%s' at '%s'\n", name, host);
-
 	if (debug >= 3)
 		return(EX_SUCCESS);
 
@@ -1523,7 +1547,6 @@ char *host;				/* remote host to be queried */
  */
 	if (verbose || debug)
 		printf("ping '%s'\n", host);
-
 	if (debug >= 3)
 		return(EX_SUCCESS);
 
@@ -1605,4 +1628,37 @@ char *domain;				/* domain to get mx hosts for */
  * No mx hosts found, and not a special case.
  */
 	return(nmx);
+}
+
+/*
+** SETSENDER -- Define an explicit envelope sender address
+** -------------------------------------------------------
+**
+**	Returns:
+**		The parsed plain address.
+**		NULL in case of elementary syntax errors.
+*/
+
+char *
+setsender(address)
+char *address;				/* potential envelope sender */
+{
+	static char addrbuf[MAXSPEC+1];	/* parsed plain address */
+	char *domain;			/* domain part of address */
+
+	/* always process address parsing errors */
+	AddrSpec = address;
+	SuprErrs = FALSE;
+
+	/* make sure it is a single address */
+	address = parselist(address);
+	if (address == NULL)
+		return(NULL);
+
+	/* skip if address cannot be parsed */
+	domain = parsespec(address, addrbuf, (char *)NULL);
+	if (domain == NULL)
+		return(NULL);
+
+	return(addrbuf);
 }

@@ -19,13 +19,15 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)stat.c	e07@nikhef.nl (Eric Wassenaar) 961013";
+static char Version[] = "@(#)stat.c	e07@nikhef.nl (Eric Wassenaar) 970926";
 #endif
 
 #include "vrfy.h"
 
+#if !defined(ERRLIST_DEFINED)
 extern char *sys_errlist[];
 extern int sys_nerr;
+#endif
 
 extern int SmtpErrno;		/* saved errno from system calls */
 extern char *SmtpPhase;		/* connection state message */
@@ -145,7 +147,7 @@ int err;				/* errno from system calls */
 	}
 
 	if (err > 0 && err < sys_nerr)
-		return(sys_errlist[err]);
+		return((char *)sys_errlist[err]);
 
 	(void) sprintf(buf, "Error %d", err);
 	return(buf);
