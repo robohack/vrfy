@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)mxrr.c	e07@nikhef.nl (Eric Wassenaar) 970828";
+static char Version[] = "@(#)mxrr.c	e07@nikhef.nl (Eric Wassenaar) 990522";
 #endif
 
 #include "vrfy.h"
@@ -132,8 +132,10 @@ char *domain;				/* domain to get mx hosts for */
 
 	while (ancount-- > 0 && cp < eom && nmx < MAXMXHOSTS)
 	{
+#ifdef obsolete
 		if (verbose >= 4 || debug)
 			(void) p_rr((qbuf_t *)cp, (qbuf_t *)msg, stdout);
+#endif /*obsolete*/
 
 		n = dn_expand(msg, eom, cp, (nbuf_t *)bp, MAXHOST);
 		if (n < 0)

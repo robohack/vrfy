@@ -1,6 +1,7 @@
-	@(#)RELEASE_NOTES       e07@nikhef.nl (Eric Wassenaar) 980820
+	@(#)RELEASE_NOTES       e07@nikhef.nl (Eric Wassenaar) 990522
 
 	URL	ftp://ftp.nikhef.nl/pub/network/vrfy.tar.Z
+	URL	http://www.nikhef.nl/user/e07
 
 yymmdd		Description of changes per release
 TODO		Things that still need to be done
@@ -9,6 +10,21 @@ WISHLIST	Wishes expressed by various people
 # ----------------------------------------------------------------------
 # Description of changes per release
 # ----------------------------------------------------------------------
+
+990522
+	Minor portability changes.
+		The BIND 4.* debugging routine p_rr() has disappeared in
+		the BIND 8.* release, and there is no simple backward
+		compatible equivalent.
+		First reported by David O'Brien <obrien@NUXI.com>
+		Also noted by Dimitrios Stergiou <dste@intranet.gr>
+
+990511
+	Minor portability changes.
+		Solaris 2.7 defines `ipaddr_t.' Can you believe it.
+		Fix glitch for bsdi.
+		Noted by Paul Eggert <eggert@twinsun.com>
+	There are no functional changes in this release.
 
 980820
 	Recognize :include: syntax.
