@@ -19,54 +19,36 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)util.c	e07@nikhef.nl (Eric Wassenaar) 921012";
+static char Version[] = "@(#)util.c	e07@nikhef.nl (Eric Wassenaar) 940525";
 #endif
 
-#include <stdio.h>
-#include <ctype.h>
-#include <sysexits.h>
-#include <sys/types.h>
-
-typedef char	ptr_t;		/* generic pointer type; will become void */
-typedef u_int	siz_t;		/* general size type; will become int */
-
-typedef int	bool;
-#define TRUE	1
-#define FALSE	0
-
-extern void exit();
-
-/* util.c */
-char *expandquotes();
-char *xalloc();
+#include "vrfy.h"
 
 /*
-** EXPANDQUOTES -- Expand quote bits/control chars in a string
-** -----------------------------------------------------------
+** PRINTABLE -- Expand quote bits/control chars in a string
+** --------------------------------------------------------
 **
 **	Returns:
 **		Pointer to static buffer containing the expansion.
 */
 
 char *
-expandquotes(string, ctrl)
+printable(string)
 char *string;				/* the string to expand */
-bool ctrl;				/* expand control chars, if set */
 {
 	static char buf[2*BUFSIZ];	/* expanded string buffer */
 	register char *p = buf;
 	register char *s = string;
 	register char c;
 
-	while (*s != '\0')
+	while ((c = *s++) != '\0')
 	{
-		c = *s++;
 		if (!isascii(c))
 		{
 			*p++ = '\\';
 			c &= 0177;
 		}
-		if (ctrl && iscntrl(c) && !isspace(c))
+		if (iscntrl(c) && !isspace(c))
 		{
 			*p++ = '^';
 			c ^= 0100;

@@ -19,21 +19,13 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)mxrr.c	e07@nikhef.nl (Eric Wassenaar) 921013";
+static char Version[] = "@(#)mxrr.c	e07@nikhef.nl (Eric Wassenaar) 940929";
 #endif
 
-#include <stdio.h>
-#include <sys/param.h>
-#include <netinet/in.h>
-#include <arpa/nameser.h>
-#include <resolv.h>
-#include <netdb.h>
+#include "vrfy.h"
 
-extern int errno;
-extern int h_errno;
 extern int verbose;
 extern int debug;
-extern struct state _res;
 
 #if PACKETSZ > 1024
 #define	MAXPACKET PACKETSZ
@@ -46,14 +38,13 @@ typedef union {
 	u_char buf[MAXPACKET];
 } querybuf;
 
-#define MAXMXHOSTS 10		/* maximum number of mx hosts */
+#ifndef HFIXEDSZ
+#define HFIXEDSZ 12		/* actually sizeof(HEADER) */
+#endif
 
 char *MxHosts[MAXMXHOSTS];	/* list of names of mx hosts found */
 
 static char hostbuf[MAXMXHOSTS*MAXPACKET];
-
-/* mxrr.c */
-int getmxbyname();
 
 /*
 ** GETMXBYNAME -- Fetch mx hosts for a domain
@@ -98,7 +89,7 @@ char *domain;				/* domain to get mx hosts for */
 
 	errno = 0;			/* reset after we got an answer */
 
-	if (n < sizeof(HEADER))
+	if (n < HFIXEDSZ)
 	{
 		h_errno = NO_RECOVERY;
 		return(0);
@@ -113,7 +104,7 @@ char *domain;				/* domain to get mx hosts for */
 
 	msg = (u_char *)&answer;
 	eom = (u_char *)&answer + n;
-	cp  = (u_char *)&answer + sizeof(HEADER);
+	cp  = (u_char *)&answer + HFIXEDSZ;
 
 	while (qdcount-- > 0 && cp < eom)
 	{
@@ -141,16 +132,16 @@ char *domain;				/* domain to get mx hosts for */
 		cp += n;
 
 		type = _getshort(cp);
- 		cp += sizeof(u_short);
+ 		cp += INT16SZ;
 
 		/* class = _getshort(cp); */
- 		cp += sizeof(u_short);
+ 		cp += INT16SZ;
 
 		/* ttl = _getlong(cp); */
- 		cp += sizeof(u_long);
+ 		cp += INT32SZ;
 
 		dlen = _getshort(cp);
-		cp += sizeof(u_short);
+		cp += INT16SZ;
 
 		if (type != T_MX) 
 		{
@@ -159,7 +150,7 @@ char *domain;				/* domain to get mx hosts for */
 		}
 
 		pref = _getshort(cp);
-		cp += sizeof(u_short);
+		cp += INT16SZ;
 
 		n = dn_expand(msg, eom, cp, (u_char *)bp, buflen);
 		if (n < 0)
@@ -170,7 +161,7 @@ char *domain;				/* domain to get mx hosts for */
 		MxHosts[nmx] = bp;
 		nmx++;
 
-		n = strlen(bp) + 1;
+		n = strlength(bp) + 1;
 		bp += n;
 		buflen -= n;
 	}

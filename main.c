@@ -36,48 +36,52 @@
  */
 
 /*
- * Author:	E.Wassenaar, Nikhef-H
- * Version:	25-MAR-1990
+ * Released versions.
  *
- * Revision:	12-JUN-1991, Add -t option to set read timeout
- * Revision:	17-JUN-1991, Save errno across smtpquit() calls
- *
- * Revision:	13-DEC-1991, Fetch MX records and verify remotely
- * Revision:	14-DEC-1991, Catch special pseudo-domains
- * Revision:	15-DEC-1991, Add -c option to set connect timeout
- * Revision:	16-DEC-1991, Add -p option to ping mx hosts
- *
- * Revision:	09-FEB-1992, Support parsing of full addresses
- * Revision:	10-FEB-1992, Add -f option to verify address files
- * Revision:	13-FEB-1992, Add -l option to handle errors locally
- * Revision:	14-FEB-1992, Implement recursive mode
- * Revision:	16-FEB-1992, Detect forwarding loops
- * Revision:	16-FEB-1992, Add -s option to strip comments
- * Revision:	17-FEB-1992, Improve recursive loop strategy
- * Revision:	28-FEB-1992, Add undocumented -h -o -m -r options
- * Revision:	29-FEB-1992, Add -n option for alternative suite
- *
- * Revision:	12-OCT-1992, Miscellaneous declaration changes.
- * Revision:	13-OCT-1992, Add -e option for expn instead of vrfy.
- * Revision:	13-OCT-1992, Various sanity checks.
- * Revision:	17-OCT-1992, Fix bug in recursion: save old host.
- * Revision:	21-OCT-1992, Add version number to all files.
+ *	910617
+ *		Add -t option to set read timeout.
+ *		Save errno across smtpquit() calls.
+ *	911216
+ *		Fetch MX records and verify remotely.
+ *		Catch special pseudo-domains.
+ *		Add -c option to set connect timeout.
+ *		Add -p option to ping mx hosts.
+ *	920229
+ *		Support parsing of full addresses.
+ *		Add -f option to verify address files.
+ *		Add -l option to handle errors locally.
+ *		Implement recursive mode.
+ *		Detect forwarding loops.
+ *		Add -s option to strip comments.
+ *		Improve recursive loop strategy.
+ *		Add undocumented -h -o -m -r options.
+ *		Add -n option for alternative suite.
+ *	921021
+ *		Miscellaneous declaration changes.
+ *		Add -e option for expn instead of vrfy.
+ *		Various sanity checks.
+ *		Fix bug in recursion: save old host.
+ *		Add version number to all files.
+ *	940525
+ *		Adapt for DEC Alpha OSF/1, and BIND 4.9.
+ *		General portability changes, port.h conf.h exit.h
+ *		Configure relay host for unresolved single hostnames.
+ *		Handle 8-bit characters and sendmail V8 meta-chars.
+ *		Some error messages slightly modified.
+ *		In exit status, temp failures override hard failures.
+ *	940929
+ *		Various portability changes.
+ *		Avoid use of sizeof() for all entities that have a fixed
+ *		field width, and use predefined constants instead. This
+ *		is necessary for systems without 16 or 32 bit integers.
+ *		Fix use of ipaddr_t and struct in_addr appropriately.
+ *		All this makes the utility portable to e.g. Cray.
  */
 
 #ifndef lint
-static char Version[] = "@(#)vrfy.c	e07@nikhef.nl (Eric Wassenaar) 921021";
+static char Version[] = "@(#)vrfy.c	e07@nikhef.nl (Eric Wassenaar) 940929";
 #endif
 
-/*
- *			Compilation options
- *
- * This program usually compiles without special compilation options,
- * but for some platforms you may have to define the following settings:
- *
- * #if defined(_AIX)
- *	DEFS = -D_BSD -D_BSD_INCLUDES -U__STR__ -DBIT_ZERO_ON_LEFT
- */
-
 /*
  *			Overview
  *
@@ -159,6 +163,8 @@ static char Version[] = "@(#)vrfy.c	e07@nikhef.nl (Eric Wassenaar) 921021";
  * Sometimes this command is not implemented at all. Other servers
  * are only willing to VRFY local recipient names without a domain
  * part (PMDF, VM, MVS).
+ * Furthermore, the sendmail V8 server can be configured to refuse
+ * the VRFY or EXPN command for privacy reasons.
  *
  * For those hosts there is an option to use the RCPT instead of
  * the VRFY command. This does not give the same information, but
@@ -192,7 +198,15 @@ static char Version[] = "@(#)vrfy.c	e07@nikhef.nl (Eric Wassenaar) 921021";
  * may yield an address at a host which is not reachable from the
  * outside world.
  */
-
+
+/*
+ *			Compilation options
+ *
+ * This program usually compiles without special compilation options,
+ * but for some platforms you may have to define special settings.
+ * See the Makefile and the header file port.h for details.
+ */
+
 /*
  *		Usage: vrfy [options] address [host]
  *
@@ -209,40 +223,8 @@ Options: [-a] [-d] [-l] [-c secs] [-t secs]\n\
 Special: [-L level] [-R] [-s] [-n] [-e]\
 ";
 
-#ifdef DEBUG
-#define assert(condition)\
-{\
-	if (!(condition))\
-	{\
-		(void) fprintf(stderr, "assertion botch: ");\
-		(void) fprintf(stderr, "%s(%d): ", __FILE__, __LINE__);\
-		(void) fprintf(stderr, "%s\n", "condition");\
-		exit(EX_SOFTWARE);\
-	}\
-}
-#else
-#define assert(condition)
-#endif
 
-#include <stdio.h>
-#include <ctype.h>
-#include <sysexits.h>
-#include <sys/param.h>
-#include <netinet/in.h>
-#include <arpa/nameser.h>
-#include <resolv.h>
-
-typedef char	ptr_t;		/* generic pointer type; will become void */
-typedef u_int	siz_t;		/* general size type; will become int */
-
-typedef int	bool;
-#define TRUE	1
-#define FALSE	0
-
-extern int ConnTimeout;		/* timeout in secs for connect() */
-extern int ReadTimeout;		/* timeout in secs for sfgets() */
-extern char *MyHostName;	/* my own fully qualified host name */
-extern struct state _res;	/* resolver parameters */
+#include "vrfy.h"
 
 char *HostSpec = NULL;		/* explicit host to be queried */
 char *AddrSpec = NULL;		/* address being processed */
@@ -265,90 +247,17 @@ bool mailmode = FALSE;		/* issue MAIL command, if set */
 bool expnmode = FALSE;		/* use EXPN instead of VRFY, if set */
 bool rcptmode = FALSE;		/* use RCPT instead of VRFY, if set */
 
-#define MAXSPEC 256		/* maximum size of single address spec */
-
-#define MAXREPLY 1200		/* maximum number of replies per query */
-
 char *ReplyList[MAXREPLY];	/* saved address expansions */
 int ReplyCount = 0;		/* number of valid replies */
 
-#define MAXHOP	17		/* default maximum recursion level */
-#define MAXLOOP	50		/* maximum useable recursion level */
-
 char *AddrChain[MAXLOOP];	/* address chain in recursive mode */
-
-#define MAXMXHOSTS 10		/* maximum number of mx hosts */
 
 extern char *MxHosts[MAXMXHOSTS];	/* names of mx hosts found */
 
-#ifndef LOCALHOST
-#define LOCALHOST "localhost"	/* redefine if not running sendmail */
-#endif
-#ifndef UUCPRELAY
-#define UUCPRELAY LOCALHOST	/* where to send pure uucp addresses */
-#endif
-#ifndef EARNRELAY
-#define EARNRELAY LOCALHOST	/* where to send earn/bitnet addresses */
-#endif
-
-#define sameword(a,b)	(strcasecmp(a,b) == 0)
-#define newstr(a)	strcpy(xalloc(strlen(a) + 1), a)
-#define xfree(a)	(void) free((ptr_t *)a)
-
-extern void exit();
-extern char *index();
-extern char *rindex();
-extern char *strcpy();
-
-/* main.c */
-int main();
-void fatal();
-void usrerr();
-void message();
-void answer();
-void show();
-void loop();
-void file();
-void list();
-void vrfy();
-void ping();
-int verify();
-int vrfyhost();
-int expnhost();
-int rcpthost();
-int pinghost();
-int getmxhosts();
-
-/* pars.c */
-bool invalidaddr();
-char *parselist();
-char *parsespec();
-bool invalidloop();
-
-/* smtp.c */
-int smtpinit();
-int smtphelo();
-int smtponex();
-int smtpverb();
-int smtpmail();
-int smtprcpt();
-int smtpexpn();
-int smtpvrfy();
-int smtpquit();
-
-/* conn.c */
-void setmyhostname();
-bool internet();
-
-/* mxrr.c */
-int getmxbyname();
-
-/* stat.c */
-void giveresponse();
-
-/* util.c */
-char *expandquotes();
-char *xalloc();
+extern int ConnTimeout;		/* timeout in secs for connect() */
+extern int ReadTimeout;		/* timeout in secs for sfgets() */
+extern char *MyHostName;	/* my own fully qualified host name */
+extern char *version;		/* program version number */
 
 /*
 ** MAIN -- Start of program vrfy
@@ -365,10 +274,21 @@ char *argv[];
 {
 	register char *option;
 
+#ifdef obsolete
+	assert(sizeof(u_int) == 4);	/* probably paranoid */
+	assert(sizeof(u_short) == 2);	/* perhaps less paranoid */
+	assert(sizeof(ipaddr_t) == 4);	/* but this is critical */
+#endif
+
+/*
+ * Synchronize stdout and stderr in case output is redirected.
+ */
+	linebufmode(stdout);
+
 /*
  * Fetch command line options.
  */
-	while (argc > 2 && argv[1][0] == '-')
+	while (argc > 1 && argv[1][0] == '-')
 	{
 	    for (option = &argv[1][1]; *option; option++)
 	    {
@@ -436,6 +356,8 @@ char *argv[];
 	    		break;
 
 		    case 'c':		/* set connect timeout */
+			if (argv[2] == NULL || argv[2][0] == '-')
+				fatal("Missing timeout value");
 			ConnTimeout = atoi(argv[2]);
 			if (ConnTimeout <= 0)
 				fatal("Illegal timeout value %s", argv[2]);
@@ -443,6 +365,8 @@ char *argv[];
 			break;
 
 		    case 't':		/* set read timeout */
+			if (argv[2] == NULL || argv[2][0] == '-')
+				fatal("Missing timeout value");
 			ReadTimeout = atoi(argv[2]);
 			if (ReadTimeout <= 0)
 				fatal("Illegal timeout value %s", argv[2]);
@@ -450,6 +374,8 @@ char *argv[];
 			break;
 
 		    case 'L' :		/* set recursion level */
+			if (argv[2] == NULL || argv[2][0] == '-')
+				fatal("Missing recursion level");
 			recursive = atoi(argv[2]);
 			if (recursive <= 0)
 				fatal("Invalid recursion level %s", argv[2]);
@@ -466,6 +392,10 @@ char *argv[];
 			rcptmode = FALSE;
 			break;
 
+		    case 'V' :
+			printf("Version %s\n", version);
+			exit(EX_OK);
+
 	    	    default:
 	    		fatal(Usage);
 	    	}
@@ -474,13 +404,24 @@ char *argv[];
 	    --argc; argv++;
 	}
 
+/*
+ * Scan remaining command line arguments.
+ */
 	/* must have at least one argument */
-	if (argc < 2 || argv[1][0] == '-')
+	if (argc < 2)
 		fatal(Usage);
 
 	/* set optional explicit host to be queried */
-	HostSpec = argv[2];
+	if (argc > 2)
+		HostSpec = argv[2];
 
+	/* rest is undefined */
+	if (argc > 3)
+		fatal(Usage);
+
+/*
+ * Miscellaneous initialization.
+ */
 	/* get own host name before turning on debugging */
 	if (helomode || pingmode)
 		setmyhostname();
@@ -489,6 +430,7 @@ char *argv[];
  * Set proper resolver options.
  */
 	/* only do RES_DEFNAMES for single host names without dot */
+	_res.options |=  RES_DEFNAMES;
 	_res.options &= ~RES_DNSRCH;
 
 	/* set nameserver debugging on, if requested */
@@ -523,6 +465,7 @@ void
 /*VARARGS1*/
 fatal(fmt, a, b, c)
 char *fmt;				/* format of message */
+char *a, *b, *c;			/* optional arguments */
 {
 	(void) fprintf(stderr, fmt, a, b, c);
 	(void) fprintf(stderr, "\n");
@@ -544,6 +487,7 @@ void
 /*VARARGS1*/
 usrerr(fmt, a, b, c)
 char *fmt;				/* format of message */
+char *a, *b, *c;			/* optional arguments */
 {
 	char msg[BUFSIZ];		/* status message buffer */
 
@@ -570,6 +514,7 @@ void
 /*VARARGS1*/
 message(msg, a, b, c)
 char *msg;				/* status message */
+char *a, *b, *c;			/* optional arguments */
 {
 	char *fmt = &msg[4];		/* format of actual message */
 
@@ -583,7 +528,7 @@ char *msg;				/* status message */
 
 	/* print the address being processed */
 	if (AddrSpec != NULL && *AddrSpec != '\0')
-		printf("%s ... ", expandquotes(AddrSpec, TRUE));
+		printf("%s ... ", printable(AddrSpec));
 
 	/* print message itself */
 	printf(fmt, a, b, c);
@@ -591,8 +536,8 @@ char *msg;				/* status message */
 }
 
 /*
-** ANSWER -- Process reply message from smtp vrfy request
-** ------------------------------------------------------
+** RESPONSE -- Process reply message from smtp vrfy request
+** --------------------------------------------------------
 **
 **	Returns:
 **		None.
@@ -606,7 +551,7 @@ char *msg;				/* status message */
 */
 
 void
-answer(msg)
+response(msg)
 char *msg;				/* status message from reply */
 {
 	char *address = &msg[4];	/* address expansion in reply */
@@ -639,13 +584,15 @@ char *msg;				/* status message from reply */
 **	In recursive mode, all received replies are verified in turn.
 */
 
+#define tempfail(x) (x == EX_TEMPFAIL || x == EX_OSERR || x == EX_IOERR)
+
 void
 show(status, host)
 int status;				/* result status of operation */
 char *host;				/* remote host that was queried */
 {
 	/* save result status, keeping previous failures */
-	if (status != EX_TEMPFAIL && ExitStat == EX_OK)
+	if (status != EX_OK && !tempfail(ExitStat))
 		ExitStat = status;
 
 	/* display the appropriate error message */
@@ -840,7 +787,7 @@ char *filename;				/* name of file to be verified */
 			*p = '\0';
 
 		/* skip leading whitespace */
-		while (isspace(*addrlist))
+		while (is_space(*addrlist))
 			addrlist++;
 
 		/* skip comment lines */
@@ -968,7 +915,7 @@ char *host;				/* remote host to be queried */
 /*
  * Perform sanity check to skip nonsense addresses.
  */
-	if (strlen(address) > MAXSPEC)
+	if (strlength(address) > MAXSPEC)
 	{
 		status = EX_USAGE;
 		show(status, (char *)NULL);
@@ -1118,7 +1065,7 @@ char *host;				/* remote host to be queried */
  * if we pass the full address specification, we cannot detect an
  * address list consisting only of comments such as '(comment)'.
  */
-	while (isspace(*address) || *address == ',')
+	while (is_space(*address) || *address == ',')
 		address++;
 	if (*address == '\0')
 		return(EX_OK);
@@ -1126,7 +1073,7 @@ char *host;				/* remote host to be queried */
 /*
  * Perform sanity check to skip nonsense addresses.
  */
-	if (strlen(address) > MAXSPEC)
+	if (strlength(address) > MAXSPEC)
 		return(EX_USAGE);
 
 /*
@@ -1357,7 +1304,7 @@ char *domain;				/* domain to get mx hosts for */
 
 		if (sameword(dot, ".bitnet") || sameword(dot, ".earn"))
 		{
-			MxHosts[0] = EARNRELAY;
+			MxHosts[0] = BITNETRELAY;
 			nmx = 1;
 			return(nmx);
 		}
@@ -1373,12 +1320,15 @@ char *domain;				/* domain to get mx hosts for */
 		return(vrfyall ? nmx : 1);
 
 /*
- * Unresolved undomained hosts go to the uucp relay.
+ * Unresolved single undomained hosts go to the single relay.
+ * How these should be interpreted depends on your local strategy:
+ * they could default to uucp addresses, bitnet addresses, or just
+ * local hosts without an mx record.
  */
 	dot = rindex(domain, '.');
 	if (dot == NULL)
 	{
-		MxHosts[0] = UUCPRELAY;
+		MxHosts[0] = SINGLERELAY;
 		nmx = 1;
 		return(nmx);
 	}

@@ -19,42 +19,10 @@
  */
 
 #ifndef lint
-static char Version[] = "@(#)pars.c	e07@nikhef.nl (Eric Wassenaar) 921013";
+static char Version[] = "@(#)pars.c	e07@nikhef.nl (Eric Wassenaar) 940525";
 #endif
 
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/types.h>
-
-typedef int	bool;
-#define TRUE	1
-#define FALSE	0
-
-#define NOT_DOTTED_QUAD	((u_long)-1)
-
-#define sameword(a,b)	(strcasecmp(a,b) == 0)
-
-extern char *index();
-extern char *rindex();
-extern char *strcpy();
-extern u_long inet_addr();
-
-/* pars.c */
-bool invalidaddr();
-char *find_delim();
-char *parselist();
-static char *cataddr();
-char *parseaddr();
-bool invalidhost();
-char *parsehost();
-char *parsespec();
-bool invalidloop();
-
-/* main.c */
-void usrerr();
-
-/* conn.c */
-u_long numeric_addr();
+#include "vrfy.h"
 
 /*
 ** INVALIDADDR -- check an address for invalid control characters
@@ -77,17 +45,30 @@ invalidaddr(addrspec)
 char *addrspec;				/* address specification */
 {
 	register char *p;
+	register char c;
 
-	for (p = addrspec; *p != '\0'; p++)
+	for (p = addrspec; (c = *p) != '\0'; p++)
 	{
-		/* reject all control characters unless harmless */
-		if (iscntrl(*p) && !isspace(*p))
-		{
-			usrerr("invalid control character in address");
-			return(TRUE);
-		}
+		/* reject special metacharacters */
+		if (is_meta(c))
+			break;
+
+		/* non-ascii for ordinary 8-bit characters */
+		if (!isascii(c))
+			continue;
+
+		/* reject non-harmless control characters */
+		if (iscntrl(c) && !isspace(c))
+			break;
 	}
 
+	if (*p != '\0')
+	{
+		usrerr("Invalid control character in address");
+		return(TRUE);
+	}
+
+	/* so far so good */
 	return(FALSE);
 }
 
@@ -220,7 +201,7 @@ char *addrspec;
 /*
  * Move to the beginning of the first address in the list.
  */
-	while (isspace(*addrspec) || *addrspec == ',')
+	while (is_space(*addrspec) || *addrspec == ',')
 		addrspec++;
 
 /*
@@ -233,7 +214,7 @@ char *addrspec;
 /*
  * Move to the beginning of the next following address.
  */
-	while (isspace(*DelimAddr) || *DelimAddr == ',')
+	while (is_space(*DelimAddr) || *DelimAddr == ',')
 		*DelimAddr++ = '\0';
 
 /*
@@ -257,14 +238,14 @@ char *addrspec;
 **	Trailing ';' characters used in group syntax are skipped.
 */
 
-static char *
+char *
 cataddr(buf, address, addrspec)
 char *buf;				/* start of address buffer */
 register char *address;			/* buf position to append to */
 register char *addrspec;		/* address spec to fetch from */
 {
 	/* skip leading whitespace */
-	while (isspace(*addrspec))
+	while (is_space(*addrspec))
 		addrspec++;
 
 	/* copy address part */
@@ -272,7 +253,7 @@ register char *addrspec;		/* address spec to fetch from */
 		*address++ = *addrspec++;
 
 	/* remove trailing whitespace and trailing ';' */
-	while (address > buf && (isspace(address[-1]) || address[-1] == ';'))
+	while (address > buf && (is_space(address[-1]) || address[-1] == ';'))
 		address--;
 
 	/* return next free position */
@@ -375,23 +356,23 @@ char *domain;				/* domain name to be checked */
 	register char *p;
 
 	/* must not be of zero length */
-	if (strlen(domain) < 1)
+	if (strlength(domain) < 1)
 	{
-		usrerr("null domain");
+		usrerr("Invalid null domain");
 		return(TRUE);
 	}
 
 	/* must not end with a dot */
-	if (domain[strlen(domain)-1] == '.')
+	if (domain[strlength(domain)-1] == '.')
 	{
-		usrerr("illegal trailing dot");
+		usrerr("Illegal trailing dot");
 		return(TRUE);
 	}
 
 	/* must not be a plain dotted quad */
 	if (inet_addr(domain) != NOT_DOTTED_QUAD)
 	{
-		usrerr("invalid dotted quad");
+		usrerr("Illegal dotted quad");
 		return(TRUE);
 	}
 
@@ -403,9 +384,9 @@ char *domain;				/* domain name to be checked */
 	for (p = domain; *p != '\0'; p++)
 	{
 		/* only alphanumeric plus dot and dash allowed */
-		if (!isalnum(*p) && *p != '.' && *p != '-')
+		if (!is_alnum(*p) && *p != '.' && *p != '-')
 		{
-			usrerr("invalid domain name");
+			usrerr("Invalid domain name");
 			return(TRUE);
 		}
 	}
@@ -450,7 +431,7 @@ char *address;				/* plain address without comment */
 			delim = find_delim(address, ':');
 		if (delim == NULL || *delim == '\0')
 		{
-			usrerr("invalid source route");
+			usrerr("Invalid source route");
 			return(NULL);
 		}
 		*delim = '\0';
@@ -570,7 +551,7 @@ char *address;
 	{
 		if (sameword(address, AddrChain[j]))
 		{
-			usrerr("mail forwarding loop");
+			usrerr("Mail forwarding loop");
 			return(TRUE);
 		}
 	}

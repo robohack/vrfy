@@ -1,4 +1,4 @@
-.TH vrfy 1
+.TH vrfy 1 "940525"
 .SH NAME
 vrfy \- Verify electronic mail addresses
 .SH SYNTAX
@@ -36,6 +36,10 @@ the address is invalid. If the address is recognized, the output
 shows the remote host's notion of the (possibly translated)
 address. If it represents a local user at that host, additional
 information about the user may be displayed.
+.PP
+Note that if the address is accepted by the contacted host, but this
+is not the final destination host, one still cannot be sure that the
+address represents a valid recipient.
 .PP
 It is a handy tool to verify local mail addresses.
 .br
@@ -94,6 +98,7 @@ in very verbose mode.
 .br
 If specified as \fB\-dd\fP, in addition all nameserver query
 transactions are shown in detail.
+A level 3 debug mode will not make any SMTP connections at all.
 .TP
 .B \-a
 If multiple mail exchange hosts were found, this option will
@@ -115,8 +120,9 @@ presented. This option is implied when \fB\-R\fP is given.
 .B \-e
 Uses the EXPN command instead of the VRFY command. Some systems
 may have different treatment for these commands, so this option
-may be a possible alternative. By sendmail they are usually treated
-the same.
+may be a possible alternative.
+By sendmail V5 they are usually treated the same, but not by the
+sendmail V8 versions.
 .TP
 .B \-n
 Many non-sendmail hosts do not, or incorrectly or incompletely,
@@ -179,23 +185,36 @@ out at the primary mail exchange host.
 If the \fB\-a\fP option was given, and multiple mail exchangers
 exist, the verification is also carried out at the remaining
 mail exchange hosts.
+.TP
+.B f.
+For the pseudo domains ".uucp" and ".bitnet" a specific server
+can be compiled-in. The default is to contact the local host.
+.TP
+.B g.
+If no mail exchangers were found for an unqualified single
+hostname, the local host is contacted by default. The actual
+meaning of such addresses depend on your local strategy.
 .SH LIMITATIONS
 Some hosts have a lousy VRFY handling. Sometimes the command
 is not implemented at all. Other hosts are willing to verify
 only local recipients. The ``-n'' option may be necessary.
+.sp
+Other servers may refuse the VRFY command for privacy reasons.
+.sp
+If the verification is not performed at the final destination
+host, one cannot be sure that the given address is valid.
 .SH MAILING LISTS
 Note the following subtle differences if you want to check
 an existing mailing list \fIlist\fP.
+Suppose that ``\fIlist\fP\-users'' is the local alias to include
+the actual file ``/mail/lists/\fIlist\fP\-users'' with recipients.
 .sp
 The command ``vrfy\ \fIlist\fP\-users'' will verify the proper
 expansion of the mailing list at the local host. No remote
-hosts are contacted to verify addresses. It is assumed that
-\fIlist\fP\-users is the local alias to include the actual
-file ``/mail/lists/\fIlist\fP\-users'' with recipients.
+hosts are contacted to verify addresses.
 .sp
 The command ``vrfy\ \-f\ /mail/lists/\fIlist\fP\-users'' will verify
-each individual address at the appropriate remote hosts. It is
-assumed that the given file contains the recipient addresses.
+each individual address at the appropriate remote hosts.
 .sp
 The same effect can be reached when you give the command
 ``vrfy\ \-L\ 1\ \fIlist\fP\-users''. Use a higher recursion level
