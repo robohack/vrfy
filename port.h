@@ -1,7 +1,7 @@
 /*
 ** Various portability definitions.
 **
-**	@(#)port.h              e07@nikhef.nl (Eric Wassenaar) 980530
+**	@(#)port.h              e07@nikhef.nl (Eric Wassenaar) 990511
 */
 
 #if defined(__SVR4) || defined(__svr4__)
@@ -25,6 +25,10 @@
 #endif
 
 #if defined(linux)
+#define SYSV_MALLOC
+#endif
+
+#if defined(bsdi) || defined(__bsdi__)
 #define SYSV_MALLOC
 #endif
 
@@ -100,10 +104,12 @@ typedef char	nbuf_t;
 typedef u_char	nbuf_t;
 #endif
 
+#ifndef _IPADDR_T
 #if defined(__alpha) || defined(BIND_49)
 typedef u_int	ipaddr_t;
 #else
 typedef u_long	ipaddr_t;
+#endif
 #endif
 
 #if defined(apollo) || defined(_BSD_SIGNALS)
@@ -112,7 +118,7 @@ typedef int	sigtype_t;
 typedef void	sigtype_t;
 #endif
 
-#if defined(SYSV_MALLOC)
+#ifdef SYSV_MALLOC
 typedef void	ptr_t;		/* generic pointer type */
 typedef u_int	siz_t;		/* general size type */
 typedef void	free_t;
