@@ -1,14 +1,14 @@
-#	@(#)Makefile            e07@nikhef.nl (Eric Wassenaar) 961013
+#	@(#)Makefile            e07@nikhef.nl (Eric Wassenaar) 971007
 
 # ----------------------------------------------------------------------
 # Adapt the installation directories to your local standards.
 # ----------------------------------------------------------------------
 
 # This is where the vrfy executable will go.
-DESTBIN = /local/bin
+DESTBIN = /usr/local/bin
 
 # This is where the vrfy manual page will go.
-DESTMAN = /local/share/man
+DESTMAN = /usr/local/man
 
 BINDIR = $(DESTBIN)
 MANDIR = $(DESTMAN)/man1
@@ -41,6 +41,10 @@ SYSDEFS =
 # Compiled-in defaults can be overruled by environment variables.
 # See also the header file conf.h for further details.
 # ----------------------------------------------------------------------
+
+#if defined(BIND_49) && __res_state is still shipped as struct state
+CONFIGDEFS = -DOLD_RES_STATE
+#endif
 
 # Define LOCALHOST if "localhost" is not running the sendmail daemon.
 CONFIGDEFS = -DLOCALHOST=\"mailhost\"
@@ -137,13 +141,18 @@ CLEANUP = $(PROG) $(OBJS) $(TARFILE) $(TARFILE).Z
 # Rules for installation.
 # ----------------------------------------------------------------------
 
+OWNER = root
+GROUP = staff
+MODE  = 755
+STRIP = -s
+
 all: $(PROG)
 
 $(PROG): $(OBJS)
 	$(CC) $(LDFLAGS) -o $(PROG) $(OBJS) $(LIBRARIES)
 
 install: $(PROG)
-	$(INSTALL) -m 755 $(PROG) $(BINDIR)
+	$(INSTALL) -m $(MODE) -o $(OWNER) -g $(GROUP) $(STRIP) $(PROG) $(BINDIR)
 
 man: $(MANS)
 	$(INSTALL) -m 444 vrfy.1 $(MANDIR)
