@@ -1,4 +1,4 @@
-#	@(#)Makefile            e07@nikhef.nl (Eric Wassenaar) 950410
+#	@(#)Makefile            e07@nikhef.nl (Eric Wassenaar) 961013
 
 # ----------------------------------------------------------------------
 # Adapt the installation directories to your local standards.
@@ -22,6 +22,10 @@ MANDIR = $(DESTMAN)/man1
 SYSDEFS = -D_BSD -D_BSD_INCLUDES -U__STR__ -DBIT_ZERO_ON_LEFT
 #endif
  
+#if defined(SCO) && You have either OpenDeskTop 3 or OpenServer 5
+SYSDEFS = -DSYSV
+#endif
+ 
 #if defined(solaris) && You do not want to use BSD compatibility mode
 SYSDEFS = -DSYSV
 #endif
@@ -34,16 +38,12 @@ SYSDEFS =
 
 # ----------------------------------------------------------------------
 # Configuration definitions.
+# Compiled-in defaults can be overruled by environment variables.
 # See also the header file conf.h for further details.
 # ----------------------------------------------------------------------
 
 # Define LOCALHOST if "localhost" is not running the sendmail daemon.
 CONFIGDEFS = -DLOCALHOST=\"mailhost\"
-CONFIGDEFS = -DLOCALHOST=\"nikhefh\"
-CONFIGDEFS = -DLOCALHOST=\"nikhapo\"
-CONFIGDEFS = -DLOCALHOST=\"asgard\"
-CONFIGDEFS = -DLOCALHOST=\"rurik\"
-CONFIGDEFS = -DLOCALHOST=\"paramount\"
 
 # Define UUCPRELAY if you have a better place to send uucp addresses.
 CONFIGDEFS = -DUUCPRELAY=LOCALHOST
@@ -68,20 +68,27 @@ COPTS = -O
 CFLAGS = $(COPTS) $(DEFS)
 
 # Select your favorite compiler.
-CC = cc
-CC = /usr/ucb/cc			#if defined(solaris) && BSD
+CC = /bin/cc -arch m68k -arch i386	#if defined(next)
+CC = /bin/cc
+CC = /usr/5bin/cc
 CC = cc
 
 # ----------------------------------------------------------------------
 # Linking definitions.
 # libresolv.a should contain the resolver library of BIND 4.8.2 or later.
 # Link it in only if your default library is different.
+# SCO keeps its own default resolver library inside libsocket.a
+#
 # lib44bsd.a contains various utility routines, and comes with BIND 4.9.*
 # You may need it if you link with the 4.9.* resolver library.
+#
 # libnet.a contains the getnet...() getserv...() getproto...() calls.
 # It is safe to leave it out and use your default library.
+# With BIND 4.9.3 the getnet...() calls are in the resolver library.
 # ----------------------------------------------------------------------
 
+RES = -lsocket				#if defined(SCO) && default
+RES =
 RES = ../res/libresolv.a
 RES = -lresolv
 
@@ -112,7 +119,7 @@ SHELL = /bin/sh
 # Files.
 # ----------------------------------------------------------------------
 
-HDRS = conf.h defs.h exit.h port.h vrfy.h
+HDRS = port.h conf.h exit.h defs.h vrfy.h
 SRCS = main.c pars.c smtp.c conn.c stat.c mxrr.c util.c vers.c
 OBJS = main.o pars.o smtp.o conn.o stat.o mxrr.o util.o vers.o
 PROG = vrfy
@@ -120,6 +127,11 @@ MANS = vrfy.1
 DOCS = RELEASE_NOTES
 
 FILES = Makefile $(DOCS) $(HDRS) $(SRCS) $(MANS)
+
+PACKAGE = vrfy
+TARFILE = $(PACKAGE).tar
+
+CLEANUP = $(PROG) $(OBJS) $(TARFILE) $(TARFILE).Z
 
 # ----------------------------------------------------------------------
 # Rules for installation.
@@ -137,7 +149,7 @@ man: $(MANS)
 	$(INSTALL) -m 444 vrfy.1 $(MANDIR)
 
 clean:
-	rm -f $(PROG) $(OBJS) *.o a.out core vrfy.tar vrfy.tar.Z
+	rm -f $(CLEANUP) *.o a.out core
 
 # ----------------------------------------------------------------------
 # Rules for maintenance.
@@ -146,15 +158,18 @@ clean:
 lint:
 	lint $(DEFS) $(SRCS)
 
+alint:
+	alint $(DEFS) $(SRCS)
+
 llint:
 	lint $(DEFS) $(SRCS) -lresolv
 
 print:
-	lpr -J $(PROG) -p Makefile $(DOCS) $(HDRS) $(SRCS)
+	lpr -J $(PACKAGE) -p Makefile $(DOCS) $(HDRS) $(SRCS)
 
 dist:
-	tar cf vrfy.tar $(FILES)
-	compress vrfy.tar
+	tar cf $(TARFILE) $(FILES)
+	compress $(TARFILE)
 
 depend:
 	mkdep $(DEFS) $(SRCS)
