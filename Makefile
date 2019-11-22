@@ -4,14 +4,17 @@
 # Adapt the installation directories to your local standards.
 # ----------------------------------------------------------------------
 
+# This might be an intermediate packaging destination
+DESTDIR = 
+
 # This is where the vrfy executable will go.
 DESTBIN = /usr/local/bin
 
 # This is where the vrfy manual page will go.
 DESTMAN = /usr/local/man
 
-BINDIR = $(DESTBIN)
-MANDIR = $(DESTMAN)/man1
+BINDIR = $(DESTDIR)$(DESTBIN)
+MANDIR = $(DESTDIR)$(DESTMAN)/man1
 
 # ----------------------------------------------------------------------
 # Special compilation options may be needed only on a few platforms.
@@ -54,7 +57,7 @@ CONFIGDEFS = -DBITNETRELAY=LOCALHOST
 # Define SINGLERELAY as the host where to send unqualified host names.
 CONFIGDEFS = -DSINGLERELAY=LOCALHOST
 
-CONFIGDEFS =
+CONFIGDEFS = -DLOCALHOST=\"mail\"
 
 # ----------------------------------------------------------------------
 # Compilation definitions.
@@ -62,8 +65,7 @@ CONFIGDEFS =
 
 DEFS = $(CONFIGDEFS) $(SYSDEFS)
 
-COPTS =
-COPTS = -O
+COPTS = -O -g
 
 CFLAGS = $(COPTS) $(DEFS)
 
@@ -88,20 +90,21 @@ CC = cc
 # ----------------------------------------------------------------------
 
 RES = -lsocket				#if defined(SCO) && default
-RES =
 RES = ../res/libresolv.a
 RES = -lresolv
 
 COMPLIB = ../compat/lib/lib44bsd.a
 COMPLIB = -lnet
-COMPLIB =
+COMPLIB = 
 
 LIBS = -lsocket -lnsl			#if defined(solaris) && not BSD
-LIBS =
+LIBS = 
 
 LIBRARIES = $(RES) $(COMPLIB) $(LIBS)
 
-LDFLAGS =
+LDFLAGS = $(COPTS) -static
+
+LDFLAGS = $(COPTS)
 
 # ----------------------------------------------------------------------
 # Miscellaneous definitions.
@@ -140,7 +143,7 @@ CLEANUP = $(PROG) $(OBJS) $(TARFILE) $(TARFILE).Z
 OWNER = root
 GROUP = staff
 MODE  = 755
-STRIP = -s
+#STRIP = -s
 
 all: $(PROG)
 
