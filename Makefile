@@ -18,18 +18,14 @@ MANDIR = $(DESTMAN)/man1
 # See also the header file port.h for portability issues.
 # ----------------------------------------------------------------------
 
-#if defined(_AIX)
-SYSDEFS = -D_BSD -D_BSD_INCLUDES -U__STR__ -DBIT_ZERO_ON_LEFT
-#endif
- 
 #if defined(SCO) && You have either OpenDeskTop 3 or OpenServer 5
 SYSDEFS = -DSYSV
 #endif
- 
+
 #if defined(solaris) && You do not want to use BSD compatibility mode
 SYSDEFS = -DSYSV
 #endif
- 
+
 #if defined(solaris) && You are using its default broken resolver library
 SYSDEFS = -DNO_YP_LOOKUP
 #endif

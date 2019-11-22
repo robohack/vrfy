@@ -11,6 +11,13 @@
 #undef  obsolete		/* old code left as a reminder */
 #undef  notyet			/* new code for possible future use */
 
+#if defined(_AIX)
+# define _BSD
+# define _BSD_INCLUDES
+# undef __STR__
+# define BIT_ZERO_ON_LEFT
+#endif
+
 #include <stdio.h>
 #include <ctype.h>
 #include <errno.h>
