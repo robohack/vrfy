@@ -94,7 +94,7 @@ internet domain host.
 .sp
 The option \fB\-R\fP is equivalent to ``\fB\-L\fP\ \fI17\fP''.
 This is the maximum hop count normally used during actual mail
-relaying. This option also implies ``\fB\-s\fP''.
+relaying.  This option also implies \fB\-s\fP.
 .SH OPTIONS
 .TP 8
 .B \-v
@@ -167,17 +167,17 @@ the SMTP HELO command is tried next.
 .TP
 .B \-n
 Many non-sendmail hosts do not, or incorrectly or incompletely,
-implement the VRFY command. Other systems have VRFY or EXPN
-disabled for privacy reasons. This option uses an alternative
-protocol suite with the regular HELO, MAIL, RCPT and RSET commands.
-This gives only a global indication whether the recipient is
-valid. Recursive mode is not possible, and will be disabled.
+implement the VRFY command. Other systems have VRFY or EXPN disabled for
+privacy reasons.  This option causes \fBvrfy\fP to send all of the
+regular EHLO|HELO, MAIL, RCPT and RSET commands, e.g. \fB\-H\fP and
+\fB\-r\fP are both implied.  Recursive mode is not possible, and will be
+disabled.
 .TP
 .BI \-S " sender"
 Defines an explicit envelope sender address to be used in the MAIL
 command during the alternative protocol suite, to overrule the
 default empty sender address ``<>''.
-This option implies ``\fB\-n\fP''.
+This option implies \fB\-n\fP.
 .TP
 .BI \-c " secs"
 Sets a connect timeout value to override the default timeout of 6
@@ -275,7 +275,7 @@ The default value is \fBlocalhost\fP.
 .SH LIMITATIONS
 Some hosts have a lousy VRFY handling. Sometimes the command
 is not implemented at all. Other hosts are willing to verify
-only local recipients. The ``-n'' option may be necessary.
+only local recipients. The \fP\-n\fB option may be necessary.
 .sp
 Other servers may refuse the VRFY command for privacy reasons.
 .sp
