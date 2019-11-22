@@ -27,11 +27,9 @@ static char Version[] = "@(#)mxrr.c	e07@nikhef.nl (Eric Wassenaar) 990522";
 extern int verbose;
 extern int debug;
 
-#if PACKETSZ > 8192
-#define MAXPACKET PACKETSZ	/* PACKETSZ should be the max udp size (512) */
-#else
-#define MAXPACKET 8192		/* but tcp packets can be considerably larger */
-#endif
+#define MAXINT16	65536		/* 2^16 */
+
+#define MAXPACKET	MAXINT16	/* maximum TCP answer length... RFC 1035 §4.2.2 */
 
 typedef union {
 	HEADER hdr;

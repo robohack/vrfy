@@ -155,6 +155,11 @@ typedef int	free_t;
 #define longjmp(e,n)	siglongjmp(e,n)
 #endif
 
+#ifdef NEED_SYS_ERR
+extern char *sys_errlist[];
+extern int sys_nerr;
+#endif
+
 #if defined(apollo) && defined(lint)
 # define __attribute(x)
 #endif

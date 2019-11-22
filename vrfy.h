@@ -37,9 +37,9 @@
 #define NOT_DOTTED_QUAD	((ipaddr_t)-1)
 
 #ifdef lint
-#define EXTERN
+# define EXTERN
 #else
-#define EXTERN extern
+# define EXTERN extern
 #endif
 
 EXTERN int errno;
@@ -76,16 +76,16 @@ EXTERN res_state_t _res;	/* defined in res_init.c */
 #define incl_addr(a)	(strncmp(a, ":include:", 9) == 0)
 
 #ifdef DEBUG
-#define assert(condition)\
-{\
-	if (!(condition))\
-	{\
-		(void) fprintf(stderr, "assertion botch: ");\
-		(void) fprintf(stderr, "%s(%d): ", __FILE__, __LINE__);\
-		(void) fprintf(stderr, "%s\n", "condition");\
-		exit(EX_SOFTWARE);\
-	}\
+# define assert(condition)						\
+{									\
+	if (!(condition))						\
+	{								\
+		(void) fprintf(stderr, "assertion botch: ");		\
+		(void) fprintf(stderr, "%s(%d): ", __FILE__, __LINE__);	\
+		(void) fprintf(stderr, "%s\n", "condition");		\
+		exit(EX_SOFTWARE);					\
+	}								\
 }
 #else
-#define assert(condition)
+# define assert(condition)
 #endif
