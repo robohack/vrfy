@@ -26,9 +26,15 @@
 /*
  * Written by Eric Wassenaar, Nikhef-H, <e07@nikhef.nl>
  *
- * The officially maintained source of this program is available
- * via anonymous ftp from machine 'ftp.nikhef.nl' [192.16.199.1]
- * in the directory '/pub/network' as 'vrfy.tar.Z'
+ * Maintained by Greg A. Woods, Planix, Inc.; <woods@planix.com>
+ *
+ *	https://github.com/robohack/vrfy
+ *
+ * The latest source release of this program is also available via anonymous FTP
+ * from machine 'ftp.weird.com' in the directory '/pub/Planix' as 'vrfy.tar.Z'
+ *
+ *	ftp://ftp.weird.com/pub/Planix/vrfy.tar.Z
+ *	http://www.weird.com/ftp/pub/Planix/vrfy.tar.Z
  *
  * You are kindly requested to report bugs and make suggestions
  * for improvements to the author at the given email address,

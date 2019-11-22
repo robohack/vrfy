@@ -1,5 +1,5 @@
 #ifndef lint
-static char Version[] = "@(#)vers.c	e07@nikhef.nl (Eric Wassenaar) 990522";
+static char Version[] = "@(#)vers.c	woods@planix.ca (Greg A. Woods) 20191122";
 #endif
 
-char *version = "990522";
+char *version = "20191122";
