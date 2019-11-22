@@ -230,6 +230,10 @@ extern int ReadTimeout;		/* -t  timeout in secs for sfgets() */
 extern char *MyHostName;	/* my own fully qualified host name */
 extern char *version;		/* program version number */
 
+#if defined(apollo)
+int h_errno = 0;
+#endif
+
 /*
 ** MAIN -- Start of program vrfy
 ** -----------------------------
