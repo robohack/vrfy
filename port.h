@@ -155,6 +155,10 @@ typedef int	free_t;
 #define longjmp(e,n)	siglongjmp(e,n)
 #endif
 
+#if defined(apollo) && defined(lint)
+# define __attribute(x)
+#endif
+
 /*
 ** No prototypes yet.
 */

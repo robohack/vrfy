@@ -4,10 +4,6 @@
 **	@(#)vrfy.h              e07@nikhef.nl (Eric Wassenaar) 990522
 */
 
-#if defined(apollo) && defined(lint)
-#define __attribute(x)
-#endif
-
 #undef  obsolete		/* old code left as a reminder */
 #undef  notyet			/* new code for possible future use */
 
