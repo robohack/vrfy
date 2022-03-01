@@ -7,14 +7,16 @@
 # This might be an intermediate packaging destination
 DESTDIR = 
 
+PREFIX = /usr/local
+
 # This is where the vrfy executable will go.
-DESTBIN = /usr/local/bin
+DESTBIN = $(PREFIX)/bin
 
-# This is where the vrfy manual page will go.
-DESTMAN = /usr/local/man
+# This is where manual page(s) will go.
+DESTMAN = $(PREFIX)/share/man
 
-BINDIR = $(DESTDIR)$(DESTBIN)
-MANDIR = $(DESTDIR)$(DESTMAN)/man1
+BINDIR = $(DESTBIN)
+MANDIR = $(DESTMAN)/man1
 
 # ----------------------------------------------------------------------
 # Special compilation options may be needed only on a few platforms.
@@ -150,11 +152,13 @@ all: $(PROG)
 $(PROG): $(OBJS)
 	$(CC) $(LDFLAGS) -o $(PROG) $(OBJS) $(LIBRARIES)
 
-install: $(PROG)
-	$(INSTALL) -m $(MODE) -o $(OWNER) -g $(GROUP) $(STRIP) $(PROG) $(BINDIR)
+install: install-prog install-man
 
-man: $(MANS)
-	$(INSTALL) -m 444 vrfy.1 $(MANDIR)
+install-prog: $(PROG)
+	$(INSTALL) -m $(MODE) -o $(OWNER) -g $(GROUP) $(STRIP) $(PROG) $(DESTDIR)$(BINDIR)
+
+install-man: $(MANS)
+	$(INSTALL) -m 444 vrfy.1 $(DESTDIR)$(MANDIR)
 
 clean:
 	rm -f $(CLEANUP) *.o a.out core
