@@ -199,24 +199,24 @@ char *AddrSpec = NULL;		/* address being processed */
 char *FileName = NULL;		/* name of file being processed */
 int LineNumber = 0;		/* line number into file */
 int ExitStat = EX_SUCCESS;	/* overall result status */
-bool SuprErrs = FALSE;		/* suppress parsing errors, if set */
+bool_t SuprErrs = FALSE;	/* suppress parsing errors, if set */
 
 int debug = 0;			/* -d  debugging level */
 int verbose = 0;		/* -v  verbosity level */
 int recursive = 0;		/* -L  recursive mode maximum level */
 
-bool stripit = FALSE;		/* -s  strip comments, if set */
-bool vrfyall = FALSE;		/* -a  query all mx hosts found, if set */
-bool localerr = FALSE;		/* -l  handle errors locally, if set */
-bool etrnmode = FALSE;		/* -T  etrn mx hosts, if set */
-bool pingmode = FALSE;		/* -p  ping mx hosts, if set */
-bool filemode = FALSE;		/* -f  verify file or stdin, if set */
-bool helomode = FALSE;		/* -h  issue HELO command, if set */
-bool ehlomode = FALSE;		/* -H  issue EHLO/HELO command, if set */
-bool onexmode = FALSE;		/* -o  issue ONEX command, if set */
-bool expnmode = FALSE;		/* -e  use EXPN instead of VRFY, if set */
-bool rcptmode = FALSE;		/* -r  use RCPT instead of VRFY, if set */
-bool datamode = FALSE;		/* -M  add DATA after MAIL/RCPT, if set */
+bool_t stripit = FALSE;		/* -s  strip comments, if set */
+bool_t vrfyall = FALSE;		/* -a  query all mx hosts found, if set */
+bool_t localerr = FALSE;	/* -l  handle errors locally, if set */
+bool_t etrnmode = FALSE;	/* -T  etrn mx hosts, if set */
+bool_t pingmode = FALSE;	/* -p  ping mx hosts, if set */
+bool_t filemode = FALSE;	/* -f  verify file or stdin, if set */
+bool_t helomode = FALSE;	/* -h  issue HELO command, if set */
+bool_t ehlomode = FALSE;	/* -H  issue EHLO/HELO command, if set */
+bool_t onexmode = FALSE;	/* -o  issue ONEX command, if set */
+bool_t expnmode = FALSE;	/* -e  use EXPN instead of VRFY, if set */
+bool_t rcptmode = FALSE;	/* -r  use RCPT instead of VRFY, if set */
+bool_t datamode = FALSE;	/* -M  add DATA after MAIL/RCPT, if set */
 
 char *ReplyList[MAXREPLY];	/* saved address expansions */
 int ReplyCount = 0;		/* number of valid replies */
@@ -599,13 +599,24 @@ int maxvalue;				/* maximum value for option */
 */
 
 void
+#ifdef __STDC__
+fatal(const char *fmt, ...)
+#else
 /*VARARGS1*/
-fatal(fmt, a, b, c, d)
-char *fmt;				/* format of message */
-char *a, *b, *c, *d;			/* optional arguments */
+fatal(fmt, va_alist)
+	const char *fmt;		/* format of message */
+	va_dcl				/* arguments for printf */
+#endif
 {
-	(void) fprintf(stderr, fmt, a, b, c, d);
-	(void) fprintf(stderr, "\n");
+	va_list ap;
+
+	VA_START(ap, fmt);
+	(void) vfprintf(stderr, fmt, ap);
+	va_end(ap);
+
+	if (fmt[strlen(fmt) - 1] != '\n')
+		(void) fputc('\n', stderr);
+
 	exit(EX_USAGE);
 }
 
@@ -618,13 +629,24 @@ char *a, *b, *c, *d;			/* optional arguments */
 **		None.
 */
 
-void /*VARARGS1*/
-error(fmt, a, b, c, d)
-char *fmt;				/* format of message */
-char *a, *b, *c, *d;			/* optional arguments */
+void
+#ifdef __STDC__
+error(const char *fmt, ...)
+#else
+/*VARARGS1*/
+error(fmt, va_alist)
+	const char *fmt;		/* format of message */
+	va_dcl				/* arguments for printf */
+#endif
 {
-	(void) fprintf(stderr, fmt, a, b, c, d);
-	(void) fprintf(stderr, "\n");
+	va_list ap;
+
+	VA_START(ap, fmt);
+	(void) vfprintf(stderr, fmt, ap);
+	va_end(ap);
+
+	if (fmt[strlen(fmt) - 1] != '\n')
+		(void) fputc('\n', stderr);
 }
 
 /*
@@ -639,20 +661,30 @@ char *a, *b, *c, *d;			/* optional arguments */
 */
 
 void
+#ifdef __STDC__
+usrerr(const char *fmt, ...)
+#else
 /*VARARGS1*/
-usrerr(fmt, a, b, c, d)
-char *fmt;				/* format of message */
-char *a, *b, *c, *d;			/* optional arguments */
+usrerr(fmt, va_alias)
+	const char *fmt;		/* format of message */
+	va_dcl				/* arguments for printf */
+#endif
 {
-	char msg[BUFSIZ];		/* status message buffer */
+	va_list ap;
 
 	/* suppress message if requested */
 	if (SuprErrs)
 		return;
 
 	/* issue message with fatal error status */
-	(void) sprintf(msg, "554 %s", fmt);
-	message(msg, a, b, c, d);
+	(void) fputs("554 ", stderr);
+
+	VA_START(ap, fmt);
+	(void) vfprintf(stderr, fmt, ap);
+	va_end(ap);
+
+	if (fmt[strlen(fmt) - 1] != '\n')
+		(void) fputc('\n', stderr);
 }
 
 /*
@@ -666,16 +698,25 @@ char *a, *b, *c, *d;			/* optional arguments */
 */
 
 void
+#ifdef __STDC__
+message(const char *msg, ...)
+#else
 /*VARARGS1*/
-message(msg, a, b, c, d)
-char *msg;				/* status message */
-char *a, *b, *c, *d;			/* optional arguments */
+message(msg, va_alist)
+	const char *msg;		/* status message */
+	va_dcl				/* arguments for printf */
+#endif
 {
-	char *fmt = &msg[4];		/* format of actual message */
+	va_list ap;
+	const char *fmt;
+
+	VA_START(ap, msg);
 
 	/* do not print informational messages if not verbose */
 	if ((msg[0] == '0' || msg[0] == '1') && !verbose)
 		return;
+
+	fmt = &msg[4];			/* format of the actual message */
 
 	/* prepend with filename and line number if appropriate */
 	if (FileName != NULL)
@@ -685,9 +726,13 @@ char *a, *b, *c, *d;			/* optional arguments */
 	if (AddrSpec != NULL && *AddrSpec != '\0')
 		printf("%s ... ", printable(AddrSpec));
 
-	/* print message itself */
-	printf(fmt, a, b, c, d);
-	printf("\n");
+	/* print the message itself */
+	(void) vfprintf(stderr, fmt, ap);
+	va_end(ap);
+
+	/* add a newline if needed */
+	if (fmt[strlen(fmt) - 1] != '\n')
+		(void) fputc('\n', stderr);
 }
 
 /*

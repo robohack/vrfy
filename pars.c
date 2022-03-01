@@ -346,14 +346,16 @@ char *address;				/* plain address without comment */
 char *
 find_delim(addrspec, delimiter)
 char *addrspec;				/* full address specification */
-char delimiter;				/* delimiter char to search for */
+int delimiter;				/* delimiter char to search for */
 {
-	bool backslash = FALSE;		/* set if need to escape next char */
-	bool quoting = FALSE;		/* set if within quoted string */
+	bool_t backslash = FALSE;	/* set if need to escape next char */
+	bool_t quoting = FALSE;		/* set if within quoted string */
 	int comment = 0;		/* level of parenthesized comments */
 	int bracket = 0;		/* level of bracketed addresses */
 	register char *p;
 	register char c;
+
+	delimiter &= 0xFF;
 
 /*
  * Scan address list, and break when delimiter found.
@@ -418,12 +420,12 @@ char delimiter;				/* delimiter char to search for */
 **	Called before any parsing is attempted.
 */
 
-bool
+bool_t
 invalidaddr(addrspec)
 char *addrspec;				/* address specification */
 {
-	bool backslash = FALSE;		/* set if need to escape next char */
-	bool quoting = FALSE;		/* set if within quoted string */
+	bool_t backslash = FALSE;	/* set if need to escape next char */
+	bool_t quoting = FALSE;		/* set if within quoted string */
 	register char *p;
 	register char c;
 
@@ -488,7 +490,7 @@ char *addrspec;				/* address specification */
 **		An error message is generated if invalid.
 */
 
-bool
+bool_t
 invalidhost(domain)
 char *domain;				/* domain name to be checked */
 {
@@ -557,7 +559,7 @@ char *domain;				/* domain name to be checked */
 **		An error message is generated if invalid.
 */
 
-bool
+bool_t
 invalidloop(address)
 char *address;
 {

@@ -4,8 +4,15 @@
 **	@(#)port.h              e07@nikhef.nl (Eric Wassenaar) 990511
 */
 
+#if (defined(__SVR4) || defined(__svr4) || defined(SVR4) || defined(svr4)) && !defined(__svr4__)
+# define __svr4__	1
+#endif
 #if defined(__SVR4) || defined(__svr4__)
 #define SVR4
+#endif
+
+#if defined(__APPLE__) && defined(__MACH__) && !defined(__darwin__)
+# define __darwin__	1
 #endif
 
 #if defined(SYSV) || defined(SVR4)
@@ -40,13 +47,6 @@
 ** Special definitions for certain platforms.
 */
 
-#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
-#define ERRLIST_DEFINED		/* don't declare sys_errlist */
-#endif
-
-#if defined(linux) || defined(__bsdi__)
-#define ERRLIST_DEFINED		/* don't declare sys_errlist */
-#endif
 
 /*
 ** Distinguish between various BIND releases.
@@ -82,9 +82,12 @@
 ** The following should depend on existing definitions.
 */
 
-typedef int	bool;		/* boolean type */
-#define TRUE	1
-#define FALSE	0
+typedef int	bool_t;		/* boolean type */
+
+#undef TRUE			/* SunOS-5 defines this in <rpc/types.h> */
+#define TRUE		1
+#undef FALSE			/* SunOS-5 defines this in <rpc/types.h> */
+#define FALSE		0
 
 #if defined(BIND_48) || defined(OLD_RES_STATE)
 typedef struct state		res_state_t;
@@ -164,24 +167,22 @@ extern int sys_nerr;
 # define __attribute(x)
 #endif
 
-/*
-** No prototypes yet.
-*/
-
-#define PROTO(TYPES)	()
-
-#if !defined(__STDC__) || defined(apollo)
-#define Proto(TYPES)	()
-#else
-#define Proto(TYPES)	TYPES
+#ifndef __P		/* in *BSD's <sys/cdefs.h>, included by everything! */
+# if ((__STDC__ - 0) > 0) || defined(__cplusplus)
+#  define __P(protos)	protos		/* full-blown ANSI C */
+# else
+#  define __P(protos)	()		/* traditional C */
+# endif
 #endif
 
-#if !defined(__STDC__) || defined(apollo)
-#define const
+#ifndef const		/* in *BSD's <sys/cdefs.h>, included by everything! */
+# if ((__STDC__ - 0) <= 0) || defined(apollo)
+#  define const		/* NOTHING */
+# endif
 #endif
 
-#if defined(__STDC__) && defined(BIND_49)
-#define CONST	const
+#ifdef __STDC__
+# define VA_START(args, lastarg)       va_start(args, lastarg)
 #else
-#define CONST
+# define VA_START(args, lastarg)       va_start(args)
 #endif

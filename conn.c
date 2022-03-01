@@ -320,6 +320,7 @@ char *hostname;				/* buffer to store host name */
 
 	(void) strncpy(hostname, hp->h_name, MAXHOST);
 	hostname[MAXHOST] = '\0';
+
 	return(EX_SUCCESS);
 }
 
@@ -341,7 +342,7 @@ char *hostname;				/* buffer to store host name */
 **	such host during recursive lookups.
 */
 
-bool
+bool_t
 internet(host)
 char *host;				/* host name to check */
 {

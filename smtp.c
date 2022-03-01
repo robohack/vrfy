@@ -109,7 +109,7 @@ char *host;				/* remote host to be contacted */
 int
 smtphelo(name, esmtp)
 char *name;				/* my own fully qualified hostname */
-bool esmtp;				/* try EHLO first, if set */
+bool_t esmtp;				/* try EHLO first, if set */
 {
 	register int r;
 
@@ -593,14 +593,22 @@ smtpquit()
 
 void
 /*VARARGS1*/
-smtpmessage(fmt, a, b, c, d)
-char *fmt;				/* format of message */
-char *a, *b, *c, *d;			/* optional arguments */
+#ifdef __STDC__
+smtpmessage(const char *fmt, ...)
+#else
+smtpmessage(fmt, va_alist)
+	const char *fmt;		/* format of message */
+	va_dcl				/* arguments for printf */
+#endif
 {
+	va_list ap;
+
 	if (SmtpOut != NULL)
 	{
 		/* construct the output message */
-		(void) sprintf(SmtpMsgBuffer, fmt, a, b, c, d);
+		VA_START(ap, fmt);
+		(void) vsprintf(SmtpMsgBuffer, fmt, ap);
+		va_end(ap);
 
 		/* display the output in verbose mode */
 		if (verbose >= 2 || debug)
@@ -630,7 +638,7 @@ char *a, *b, *c, *d;			/* optional arguments */
 int
 smtpreply(phase, check)
 char *phase;				/* new connection state message */
-bool check;				/* process response, if set */
+bool_t check;				/* process response, if set */
 {
 	register int r;
 	register char *p;

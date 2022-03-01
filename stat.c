@@ -24,11 +24,6 @@ static char Version[] = "@(#)stat.c	e07@nikhef.nl (Eric Wassenaar) 970926";
 
 #include "vrfy.h"
 
-#if !defined(ERRLIST_DEFINED)
-extern char *sys_errlist[];
-extern int sys_nerr;
-#endif
-
 extern int SmtpErrno;		/* saved errno from system calls */
 extern char *SmtpPhase;		/* connection state message */
 extern char *CurHostName;	/* remote host that is being contacted */

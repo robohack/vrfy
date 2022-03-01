@@ -32,6 +32,12 @@
 #include <arpa/nameser.h>
 #include <resolv.h>
 
+#ifdef __STDC__
+# include <stdarg.h>
+#else
+# include <varargs.h>
+#endif
+
 #include "port.h"		/* various portability definitions */
 #include "conf.h"		/* various configuration definitions */
 #include "exit.h"		/* exit codes come from <sysexits.h> */

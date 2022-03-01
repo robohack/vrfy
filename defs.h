@@ -10,88 +10,90 @@
 */
 	/* main.c */
 
-int main		PROTO((int, char **));
-void set_defaults	PROTO((char *, int, char **));
-int getval		PROTO((char *, char *, int, int));
-void fatal		PROTO((char *, ...));
-void error		PROTO((char *, ...));
-void usrerr		PROTO((char *, ...));
-void message		PROTO((char *, ...));
-void response		PROTO((char *));
-void show		PROTO((int, char *));
-void loop		PROTO((char *, char *));
-void file		PROTO((char *));
-void list		PROTO((char *));
-void vrfy		PROTO((char *, char *));
-void etrn		PROTO((char *, char *));
-void ping		PROTO((char *));
-int verify		PROTO((char *, char *));
-int vrfyhost		PROTO((char *, char *));
-int expnhost		PROTO((char *, char *));
-int rcpthost		PROTO((char *, char *));
-int etrnhost		PROTO((char *, char *));
-int pinghost		PROTO((char *));
-int getmxhosts		PROTO((char *));
-char *setsender		PROTO((char *));
+int main		__P((int, char **));
+void set_defaults	__P((char *, int, char **));
+int getval		__P((char *, char *, int, int));
+void fatal		__P((const char *, ...));
+void error		__P((const char *, ...));
+void usrerr		__P((const char *, ...));
+void message		__P((const char *, ...));
+void response		__P((char *));
+void show		__P((int, char *));
+void loop		__P((char *, char *));
+void file		__P((char *));
+void list		__P((char *));
+void vrfy		__P((char *, char *));
+void etrn		__P((char *, char *));
+void ping		__P((char *));
+void relay		__P((char *, char *));
+int verify		__P((char *, char *));
+int vrfyhost		__P((char *, char *));
+int expnhost		__P((char *, char *));
+int rcpthost		__P((char *, char *));
+int etrnhost		__P((char *, char *));
+int pinghost		__P((char *));
+int relayhost		__P((char *, char *));
+int getmxhosts		__P((char *));
+char *setsender		__P((char *));
 
 	/* pars.c */
 
-char *parselist		PROTO((char *));
-char *parsespec		PROTO((char *, char *, char *));
-char *parseaddr		PROTO((char *));
-char *parsehost		PROTO((char *));
-char *find_delim	PROTO((char *, char));
-bool invalidaddr	PROTO((char *));
-bool invalidhost	PROTO((char *));
-bool invalidloop	PROTO((char *));
-char *cataddr		PROTO((char *, char *, char *));
+char *parselist		__P((char *));
+char *parsespec		__P((char *, char *, char *));
+char *parseaddr		__P((char *));
+char *parsehost		__P((char *));
+char *find_delim	__P((char *, int));
+bool_t invalidaddr	__P((char *));
+bool_t invalidhost	__P((char *));
+bool_t invalidloop	__P((char *));
+char *cataddr		__P((char *, char *, char *));
 
 	/* smtp.c */
 
-int smtpinit		PROTO((char *));
-int smtphelo		PROTO((char *, bool));
-int smtpehlo		PROTO((char *));
-int smtponex		PROTO((void));
-int smtpverb		PROTO((char *));
-int smtpetrn		PROTO((char *));
-int smtprset		PROTO((void));
-int smtpmail		PROTO((char *));
-int smtprcpt		PROTO((char *));
-int smtpexpn		PROTO((char *));
-int smtpvrfy		PROTO((char *));
-int smtpdata		PROTO((void));
-int smtpbody		PROTO((void));
-int smtpquit		PROTO((void));
-void smtpmessage	PROTO((char *, ...));
-int smtpreply		PROTO((char *, bool));
+int smtpinit		__P((char *));
+int smtphelo		__P((char *, bool_t));
+int smtpehlo		__P((char *));
+int smtponex		__P((void));
+int smtpverb		__P((char *));
+int smtpetrn		__P((char *));
+int smtprset		__P((void));
+int smtpmail		__P((char *));
+int smtprcpt		__P((char *));
+int smtpexpn		__P((char *));
+int smtpvrfy		__P((char *));
+int smtpdata		__P((void));
+int smtpbody		__P((void));
+int smtpquit		__P((void));
+void smtpmessage	__P((const char *, ...));
+int smtpreply		__P((char *, bool_t));
 
 	/* conn.c */
 
-sigtype_t timer		PROTO((int));
-char *sfgets		PROTO((char *, int, FILE *));
-int makeconnection	PROTO((char *, char **, char **));
-void setmyhostname	PROTO((void));
-int getmyhostname	PROTO((char *));
-bool internet		PROTO((char *));
-ipaddr_t numeric_addr	PROTO((char *));
+sigtype_t timer		__P((int));
+char *sfgets		__P((char *, int, FILE *));
+int makeconnection	__P((char *, FILE **, FILE **));
+void setmyhostname	__P((void));
+int getmyhostname	__P((char *));
+bool_t internet		__P((char *));
+ipaddr_t numeric_addr	__P((char *));
 
 	/* stat.c */
 
-char *statstring	PROTO((int));
-char *errstring		PROTO((int));
-void giveresponse	PROTO((int));
+char *statstring	__P((int));
+char *errstring		__P((int));
+void giveresponse	__P((int));
 
 	/* mxrr.c */
 
-int getmxbyname		PROTO((char *));
+int getmxbyname		__P((char *));
 
 	/* util.c */
 
-void fixcrlf		PROTO((char *, bool));
-char *maxstr		PROTO((char *, int, bool));
-char *printable		PROTO((char *));
-ptr_t *xalloc		PROTO((ptr_t *, siz_t));
-char *itoa		PROTO((int));
+void fixcrlf		__P((char *, bool_t));
+char *maxstr		__P((char *, int, bool_t));
+char *printable		__P((char *));
+ptr_t *xalloc		__P((ptr_t *, siz_t));
+char *itoa		__P((int));
 
 /*
 ** External library functions
@@ -103,8 +105,8 @@ char *itoa		PROTO((int));
 #include <arpa/inet.h>
 #else
 
-ipaddr_t inet_addr	PROTO((CONST char *));
-char *inet_ntoa		PROTO((struct in_addr));
+ipaddr_t inet_addr	__P((const char *));
+char *inet_ntoa		__P((struct in_addr));
 
 #endif
 
@@ -112,8 +114,8 @@ char *inet_ntoa		PROTO((struct in_addr));
 
 #if !defined(index)
 
-char *index		PROTO((const char *, int));
-char *rindex		PROTO((const char *, int));
+char *index		__P((const char *, int));
+char *rindex		__P((const char *, int));
 
 #endif
 
@@ -123,9 +125,9 @@ char *rindex		PROTO((const char *, int));
 #include <string.h>
 #else
 
-char *strcpy		PROTO((char *, const char *));
-char *strcat		PROTO((char *, const char *));
-char *strncpy		PROTO((char *, const char *, siz_t));
+char *strcpy		__P((char *, const char *));
+char *strcat		__P((char *, const char *));
+char *strncpy		__P((char *, const char *, siz_t));
 
 #endif
 
@@ -135,11 +137,11 @@ char *strncpy		PROTO((char *, const char *, siz_t));
 #include <stdlib.h>
 #else
 
-char *getenv		PROTO((const char *));
-ptr_t *malloc		PROTO((siz_t));
-ptr_t *realloc		PROTO((ptr_t *, siz_t));
-free_t free		PROTO((ptr_t *));
-void exit		PROTO((int));
+char *getenv		__P((const char *));
+ptr_t *malloc		__P((siz_t));
+ptr_t *realloc		__P((ptr_t *, siz_t));
+free_t free		__P((ptr_t *));
+void exit		__P((int));
 
 #endif
 
@@ -149,6 +151,6 @@ void exit		PROTO((int));
 #include <unistd.h>
 #else
 
-unsigned int alarm	PROTO((unsigned int));
+unsigned int alarm	__P((unsigned int));
 
 #endif

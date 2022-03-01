@@ -47,7 +47,7 @@ static char Version[] = "@(#)util.c	e07@nikhef.nl (Eric Wassenaar) 971113";
 void
 fixcrlf(line, stripcr)
 char *line;				/* the input line to fix */
-bool stripcr;				/* also strip CR, if set */
+bool_t stripcr;				/* also strip CR, if set */
 {
 	register char *p;
 
@@ -80,7 +80,7 @@ char *
 maxstr(string, n, save)
 char *string;				/* the string to check */
 int n;					/* the maximum allowed size */
-bool save;				/* allocate new string, if set */
+bool_t save;				/* allocate new string, if set */
 {
 	if (strlength(string) > n)
 	{
