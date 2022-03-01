@@ -27,6 +27,8 @@
 
 #include <netdb.h>
 #undef NOERROR			/* in <sys/streams.h> on solaris 2.x */
+#define BIND_4_COMPAT
+#define BIND_8_COMPAT
 #include <arpa/nameser.h>
 #include <resolv.h>
 
