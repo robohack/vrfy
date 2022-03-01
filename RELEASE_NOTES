@@ -1,15 +1,27 @@
 	@(#)RELEASE_NOTES       e07@nikhef.nl (Eric Wassenaar) 990522
 
-	URL	ftp://ftp.nikhef.nl/pub/network/vrfy.tar.Z
-	URL	http://www.nikhef.nl/user/e07
+	URL	https://github.com/robohack/vrfy/
+	URL	http://www.planix.com/~woods/projects/index.html
 
-yymmdd		Description of changes per release
+# Table of Contents
+# -----------------
+yyyymmdd	Description of changes per release
 TODO		Things that still need to be done
 WISHLIST	Wishes expressed by various people
 
 # ----------------------------------------------------------------------
 # Description of changes per release
 # ----------------------------------------------------------------------
+
+20220228
+	Fix the build for macOS.
+	Various other portability fixes and cleanups.
+        Add pkgsrc support.
+
+20191122
+	Move to Git and host on GitHub
+		Add a README.md file.
+		Various portability fixes and cleanups.
 
 990522
 	Minor portability changes.
@@ -256,6 +268,8 @@ WISHLIST	Wishes expressed by various people
 # ----------------------------------------------------------------------
 # TODO
 # ----------------------------------------------------------------------
+
+Convert Makefile to expect BMake/PMake.
 
 # ----------------------------------------------------------------------
 # WISHLIST
