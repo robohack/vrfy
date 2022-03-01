@@ -1,0 +1,54 @@
+# -*-makefile-bsdmake-*-
+# $NetBSD$
+
+DISTNAME=	vrfy-20191122
+CATEGORIES=	mail
+
+# for use of ${FILESDIR} (as per "make setup-pkgsrc" below):
+DISTFILES=	# empty
+#
+# else (and remove do-extract):
+#MASTER_SITES=	${MASTER_SITE_GITHUB:=robohack/}
+#GITHUB_TAG=	v${PKGVERSION_NOREV}
+
+OWNER=		woods@planix.com
+HOMEPAGE=	http://www.planix.com/~woods/projects/index.html
+COMMENT=        NIKHEF vrfy SMTP address verifier (by Eric Wassenaar)
+
+NO_CONFIGURE=	yes
+AUTO_MKDIRS=	yes
+
+.include "../../mk/bsd.prefs.mk"
+
+.if ${OPSYS} != "NetBSD"
+MAKEFLAGS+=	'LIBS+=-lresolv'
+.endif
+
+do-extract:
+	${MKDIR} ${WRKSRC}
+	${CP} -Rp ${FILESDIR}/* ${WRKSRC}/
+	${RM} -rf ${WRKSRC}/CVS
+
+# how to get from there to here....
+#
+# Go to where you have cloned https://github.com/robohack/yajl to, copy this
+# Makefile into your $pkgsrc/devel/yajl directory, go there, and build this
+# target:
+#
+#	rm -rf build* dest*
+#	make clean
+#	cp Makefile.pkgsrc /usr/pkgsrc/mail/vrfy/Makefile
+#	cd /usr/pkgsrc/mail/vrfy
+#	make REPODIR=$OLDPWD setup-pkgsrc
+#
+REPODIR ?=	/work/woods/g-vrfy
+setup-pkgsrc:
+	mkdir -p ${FILESDIR}
+	find ${FILESDIR} -type d \( -name CVS -or -name .git -or -name .svn \) -prune -or -type f ! -name '.*ignore' -print0 | xargs -0 rm
+	cd ${REPODIR} && find . \( -type d \( -name CVS -or -name .git -or -name .svn -or -name build -or -name 'build-*' -or -name dest -or -name 'dest-*' \) -prune \) -or -type f ! -name '.#*' ! -name '#*#' ! -name '*~' ! -name '.*ignore' ! -name '[Tt][Aa][Gg][Ss]' -print | pax -rw ${FILESDIR}
+	mv ${FILESDIR}/Makefile.pkgsrc ${PKGDIR}/Makefile
+	mv ${FILESDIR}/PLIST.pkgsrc ${PKGDIR}/PLIST
+	mv ${FILESDIR}/patch-Makefile ${PKGDIR}/patches/patch-Makefile
+	make mps
+
+.include "../../mk/bsd.pkg.mk"
