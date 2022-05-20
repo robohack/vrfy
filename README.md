@@ -1,4 +1,6 @@
-# Overview
+# VRFY -- An SMTP mail address verifier
+
+## Overview
 
 `vrfy` is a tool to verify electronic mail addresses using SMTP.
 
@@ -71,7 +73,7 @@ not an internet domain host.
 The default recursion level is set to the `MAXHOP` value (17) as used by
 sendmail, but this can be overruled (smaller or larger).
 
-# Limitations
+## Limitations
 
 Many SMTP servers do not support the SMTP `VRFY` and `EXPN` commands, or
 may reject those commands when they are issued by a "foreign" sender.
@@ -102,7 +104,7 @@ Some hosts return an unqualified address for local recipients.  This is
 acceptable if it consists only of the pure "local part" but sometimes it
 is of the form _"<user@host>"_ which is difficult to trace further.
 
-# Rest In Peace Eric Wassenaar.
+### Rest In Peace Eric Wassenaar.
 
 Eric Wassenaar was killed in a traffic accident on April 10th of 2000.
 He was the original author of `vrfy`, as well as of several other
@@ -113,8 +115,12 @@ operations and their connection to the Internet.  His original web page
 at www.nikhef.nl/user/e07, and the FTP archive of his tools at
 ftp.nikhef.nl, was removed shortly after his death.
 
+There is however a mirror of Eric's NIKHEF FTP tools directory available
+here:  http://www.dfred.net/public/src/nikhef_nettools/
+
 See the tribute to him in the [NIKHEF 2000 Annual
 report](https://www.nikhef.nl/wp-content/uploads/2016/01/Annual_Report-2000.pdf
 "NIKHEF 2000 Annual report").
 
-I have maintained Eric's version of `host` and `vrfy` since then.
+I have maintained Eric's versions of `host`, `ping', and `vrfy` since
+then.
