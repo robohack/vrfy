@@ -33,6 +33,8 @@ extern int debug;
 char *CurHostName = NULL;	/* remote host we are connecting to */
 char *MyHostName = NULL;	/* my own fully qualified host name */
 
+int Port = -1;			/* optional non-default port number */
+
 int ConnTimeout = CONNTIMEOUT;	/* timeout in secs for connect */
 int ReadTimeout = READTIMEOUT;	/* timeout in secs for read reply */
 
@@ -182,6 +184,9 @@ FILE **infile;				/* smtp input channel */
 	if (sp == NULL)
 		return(EX_OSERR);
 
+	if (Port != -1) {
+		sp->s_port = htons((unsigned short) Port); /* uint16_t */
+	}
 	for (i = 0; i < naddrs; i++)
 	{
 		sin.sin_family = AF_INET;

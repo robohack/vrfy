@@ -173,6 +173,10 @@ regular EHLO|HELO, MAIL, RCPT and RSET commands, e.g. \fB\-H\fP and
 \fB\-r\fP are both implied.  Recursive mode is not possible, and will be
 disabled.
 .TP
+.BI \-P " port"
+Set an optional port number to use instead of the local system-defined
+port for the "smtp" service (which is normally 25, see services(5)).
+.TP
 .BI \-S " sender"
 Defines an explicit envelope sender address to be used in the MAIL
 command during the alternative protocol suite, to overrule the

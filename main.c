@@ -230,11 +230,12 @@ char *singlerelay = SINGLERELAY;	/* unqualified host relay */
 
 extern char *MxHosts[MAXMXHOSTS];	/* names of mx hosts found */
 
+extern int Port;		/* -p  port# */
 extern int ConnTimeout;		/* -c  timeout in secs for connect() */
 extern int ReadTimeout;		/* -t  timeout in secs for sfgets() */
 
 extern char *MyHostName;	/* my own fully qualified host name */
-extern char *version;		/* program version number */
+extern char *version;		/* program version identification */
 
 #if defined(apollo)
 int h_errno = 0;
@@ -365,6 +366,11 @@ char *argv[];
 			ehlomode = TRUE;
 			helomode = TRUE;
 	    		/*FALLTHROUGH*/
+
+		    case 'P':		/* set the port number to connect to */
+			Port = getval(argv[2], "SMTP port number", 1, (1U << 16) - 1);
+			--argc; argv++;
+			break;
 
 	    	    case 'r':		/* use MAIL/RCPT instead of VRFY */
 			rcptmode = TRUE;
