@@ -11,10 +11,6 @@
 #define SVR4
 #endif
 
-#if defined(__APPLE__) && defined(__MACH__) && !defined(__darwin__)
-# define __darwin__	1
-#endif
-
 #if defined(SYSV) || defined(SVR4)
 #define SYSV_MALLOC
 #define SYSV_MEMSET
