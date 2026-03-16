@@ -13,6 +13,9 @@ WISHLIST	Wishes expressed by various people
 # Description of changes per release
 # ----------------------------------------------------------------------
 
+20260316
+        Implement '-P port#' to set an optional port number.
+
 20220228
 	Fix the build for macOS.
 	Various other portability fixes and cleanups.

@@ -1,7 +1,7 @@
 # -*-makefile-bsdmake-*-
 # $NetBSD$
 
-DISTNAME=	vrfy-20220228
+DISTNAME=	vrfy-20260316
 CATEGORIES=	mail
 
 # for use of ${FILESDIR} (as per "make setup-pkgsrc" below):

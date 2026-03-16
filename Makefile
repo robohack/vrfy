@@ -134,9 +134,9 @@ DOCS = RELEASE_NOTES
 FILES = Makefile $(DOCS) $(HDRS) $(SRCS) $(MANS)
 
 PACKAGE = vrfy
-TARFILE = $(PACKAGE).tar
+TARFILE = $(PACKAGE).tar.gz
 
-CLEANUP = $(PROG) $(OBJS) $(TARFILE) $(TARFILE).Z
+CLEANUP = $(PROG) $(OBJS) $(TARFILE)
 
 # ----------------------------------------------------------------------
 # Rules for installation.
@@ -180,8 +180,7 @@ print:
 	lpr -J $(PACKAGE) -p Makefile $(DOCS) $(HDRS) $(SRCS)
 
 dist:
-	tar cf $(TARFILE) $(FILES)
-	compress $(TARFILE)
+	pax -zw -f $(TARFILE) $(FILES)
 
 depend:
 	mkdep $(DEFS) $(SRCS)
