@@ -134,7 +134,8 @@ DOCS = RELEASE_NOTES
 FILES = Makefile $(DOCS) $(HDRS) $(SRCS) $(MANS)
 
 PACKAGE = vrfy
-TARFILE = $(PACKAGE).tar.gz
+VERSION != awk '/version =/ {gsub(/[";]/, "", $$NF); print $$NF}' vers.c
+TARFILE = $(PACKAGE)-$(VERSION).tar.gz
 
 CLEANUP = $(PROG) $(OBJS) $(TARFILE)
 
