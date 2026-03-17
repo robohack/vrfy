@@ -1,0 +1,43 @@
+How to make a new release:
+==========================
+
+Update the following files with the new release ID:
+
+	Makefile.pkgsrc
+        RELEASE_NOTES
+	vers.c
+        vrfy.1
+
+Note:
+
+	VERSION=$(make -V VERSION)
+
+Tag the release:
+
+	git tag -s -m "Implement -P port# to set an optional port number." v${VERSION}
+
+    or in Magit:
+
+	t -s r
+
+Create the release as a "release" on Github:
+
+        gh release create v${VERSION} -t "v${VERSION}" -n "Implement -P port# to set an optional port number."
+
+    add a '-p' (and adjust tag name and title) to make it a pre-release
+
+Push the distribution archive:
+
+	make dist
+	scp vrfy-${VERSION}.tar.gz central:/var/spool/ftp/pub/Planix/
+        ssh central "ln -fs /var/spool/ftp/pub/Planix/vrfy-${VERSION}.tar.gz /var/spool/ftp/pub/Planix/vrfy.tar.gz"
+
+Fix up the pkgsrc shar:
+
+	cp Makefile.pkgsrc /usr/pkgsrc/mail/vrfy
+	cd mail/vrfy
+        make fetch
+        make makesum
+        shar DESCR Makefile PLIST distinfo patches/patch-Makefile > ~/tmp/vrfy-${VERSION}-pkgsrc.shar
+	scp ~/tmp/vrfy-${VERSION}-pkgsrc.shar central:/var/spool/ftp/pub/Planix/
+        ssh central 'ln -fs /var/spool/ftp/pub/Planix/vrfy-${VERSION}-pkgsrc.shar /var/spool/ftp/pub/Planix/vrfy-pkgsrc.shar'
